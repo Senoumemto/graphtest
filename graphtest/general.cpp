@@ -170,8 +170,8 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 toolkit::rooter::rooter() {}
 //レイ集合を登録する　カメラも追加できる
 void toolkit::rooter::RegisterRays(const rays& rs) {
-	for (const auto& r : rs)
-		stack.push_back(r);
+	for (ray r : rs)
+		stack.push_back(r.indexed(this->MakeUniqueRayId()));
 }
 
 toolkit::rooter::operator bool() {
@@ -244,4 +244,9 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 	}
 
 	return rez;
+}
+
+index toolkit::rooter::MakeUniqueRayId() {
+	static index id = 0;
+	return id++;
 }

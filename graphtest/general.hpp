@@ -79,6 +79,8 @@ public:
 //Œõü
 class ray :public std::pair<hvec3, hvec3> {
 	using super = std::pair<hvec3, hvec3>;
+protected:
+	std::optional<index> id;//rooter‚É“o˜^‚³‚ê‚é‚Ü‚Å‚Íid‚È‚µ
 public:
 	hvec3& org();
 	hvec3& way();
@@ -88,8 +90,12 @@ public:
 
 	ray(const super& s) :super(s) {}
 	ray() {}
+
+	ray& indexed(index _id) { id = _id; return *this; }
+	index index()const { return id.value(); }
 };
 using rays = std::vector<ray>;
+
 //ƒJƒƒ‰
 class camera : public rays {
 public:
@@ -131,11 +137,30 @@ struct narrowphaseResultElement {
 };
 using narrowphaseResults = std::deque<narrowphaseResultElement>;
 
+class closesthit :public narrowphaseResultElement {
+	using super = narrowphaseResultElement;
+protected:
+	bool enable;
+public:
+	closesthit():enable(false){}
+	closesthit(const super& s) :super(s) { closesthit(); }
+
+	void operator=(const super& s) {
+		super::operator=(s);
+		enable = true;
+	}
+
+	bool isEnable()const {
+		return enable;
+	}
+};
+
 //ƒOƒ‰ƒ{‚Ì‹@”\‚ğÀ‘•
 namespace toolkit {
 	//ƒŒƒC‚ğ”z•z‚µ‚Ä‚­‚ê‚é‚â‚Â
 	class rooter {
 		std::deque<ray> stack;
+		index MakeUniqueRayId();
 	public:
 		rooter();
 
@@ -283,10 +308,24 @@ namespace toolkit {
 	};
 
 
-	class anyhit {
+	template<index cachesize>class anyhit {
+	protected:
+		std::array<closesthit, cachesize> cache;
 	public:
 		void Anyhit(const narrowphaseResults& nprez) {
+			for (const auto& rez : nprez) {
+				if (cache.at(rez.r.index()).isEnable()) {
+					if(rez.uvt.at(2)<cache.at(rez.r.index()).uvt.at(2))//“o˜^Ï‚İ‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
+						cache.at(rez.r.index()) = rez;
+				}
+				else cache.at(rez.r.index()) = rez;//“o˜^‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î–â“š–³—p‚Å“o˜^
 
+			}
+
+			for (const auto& c : cache) {
+				if (c.isEnable())
+					std::cout << "index " << c.r.index() << std::endl;
+			}
 		}
 	};
 };

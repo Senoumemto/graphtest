@@ -5,6 +5,10 @@
 using namespace std;
 using namespace Eigen;
 
+#define CORE_NUM 1
+#define ANYHIT_CACHE 128
+#define CAMERA_RESOLUTION_SQRT 2
+
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
 アウターからコマンドを使ってカメラとblasとそれぞれの変換を送信　tlasを構成する
@@ -13,9 +17,9 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 //装置たち
 struct {
 	toolkit::rooter rooter;
-	toolkit::broadphaser<1> broadphaser;
+	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
-	toolkit::anyhit anyhit;
+	toolkit::anyhit<ANYHIT_CACHE> anyhit;
 }machines;
 
 
@@ -34,7 +38,7 @@ prephaseRez PrePhase() {
 	rez.objs.push_back(obj);
 
 
-	rez.cam.reset(new camera(2, 2, -1.0));
+	rez.cam.reset(new camera(CAMERA_RESOLUTION_SQRT, CAMERA_RESOLUTION_SQRT, -1.0));
 
 	return rez;
 }
