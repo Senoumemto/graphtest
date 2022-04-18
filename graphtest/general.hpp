@@ -281,4 +281,12 @@ namespace toolkit {
 
 		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez);
 	};
+
+
+	class anyhit {
+	public:
+		void Anyhit(const narrowphaseResults& nprez) {
+
+		}
+	};
 };

@@ -15,6 +15,7 @@ struct {
 	toolkit::rooter rooter;
 	toolkit::broadphaser<1> broadphaser;
 	toolkit::narrowphaser narrowphaser;
+	toolkit::anyhit anyhit;
 }machines;
 
 
@@ -83,6 +84,8 @@ int main() {
 
 	auto bpRez = BroadPhase();	//done命令があればグラボがブロードフェーズを行う
 	auto npRez = machines.narrowphaser.RayTrace(*bpRez);//ブロードフェーズ結果からナローフェーズを行う
+	machines.anyhit.Anyhit(*npRez);//レイの遮蔽を計算しclosest-hitを計算する
+
 
 	return 0;
 }
