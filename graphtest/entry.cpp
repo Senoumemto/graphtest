@@ -6,8 +6,9 @@ using namespace std;
 using namespace Eigen;
 
 #define CORE_NUM 1
-#define ANYHIT_CACHE 128
-#define CAMERA_RESOLUTION_SQRT 2
+#define ANYHIT_CACHE (32*32)
+#define MATERIALER_CACHE (ANYHIT_CACHE)
+#define CAMERA_RESOLUTION_SQRT 32
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -20,6 +21,7 @@ struct {
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
 	toolkit::anyhit<ANYHIT_CACHE> anyhit;
+	toolkit::materialer<MATERIALER_CACHE> materialer;
 }machines;
 
 
@@ -32,7 +34,7 @@ prephaseRez PrePhase() {
 	prephaseRez rez;
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
 	dmod model;
-	//ModLoader("../cube.dae", * model);
+	//ModLoader("../monkey.dae", model);
 	MakeTestSquare(model);
 	sptr<blas> obj(new blas(model));
 	rez.objs.push_back(obj);
@@ -88,8 +90,8 @@ int main() {
 
 	auto bpRez = BroadPhase();	//done命令があればグラボがブロードフェーズを行う
 	auto npRez = machines.narrowphaser.RayTrace(*bpRez);//ブロードフェーズ結果からナローフェーズを行う
-	machines.anyhit.Anyhit(*npRez);//レイの遮蔽を計算しclosest-hitを計算する
-
+	auto closestHits = machines.anyhit.Anyhit(*npRez);//レイの遮蔽を計算しclosest-hitを計算する
+	auto rayPayloads=machines.materialer.Shading(*closestHits);//レイの表面での振る舞いを計算 next gen raysを生成
 
 	return 0;
 }

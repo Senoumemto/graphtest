@@ -14,7 +14,7 @@ using dvec3 = vec3<double>;
 int MakeTestSquare(dmod& ret) {
 
 	ret.resize(2);
-	const dvec3 a({ -1,1,-1 }), b({ 1,1,-1 }), c({ 1,-1,-1 }), d({ -1,-1,-1 }), o({0,0,-1});
+	const dvec3 a({ -0.5,0.5,-1 }), b({ 0.5,0.5,-1 }), c({ 0.5,-0.5,-1 }), d({ -0.5,-0.5,-1 }), o({0,0,-1});
 	const dtri p({ a,b,o }), q({ b,c,o }), r({ c,d,o }), s({d,a,o});
 
 	ret = { p,q,r,s };

@@ -155,6 +155,11 @@ public:
 	}
 };
 
+using closesthits = std::vector<closesthit>;
+
+using payload = bool;
+using payloads = std::vector<payload>;
+
 //ƒOƒ‰ƒ{‚Ì‹@”\‚ðŽÀ‘•
 namespace toolkit {
 	//ƒŒƒC‚ð”z•z‚µ‚Ä‚­‚ê‚é‚â‚Â
@@ -310,22 +315,49 @@ namespace toolkit {
 
 	template<index cachesize>class anyhit {
 	protected:
-		std::array<closesthit, cachesize> cache;
+		sptr<closesthits> cache;
 	public:
-		void Anyhit(const narrowphaseResults& nprez) {
+		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez) {
 			for (const auto& rez : nprez) {
-				if (cache.at(rez.r.index()).isEnable()) {
-					if(rez.uvt.at(2)<cache.at(rez.r.index()).uvt.at(2))//“o˜^Ï‚Ý‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
-						cache.at(rez.r.index()) = rez;
+				if (cache->at(rez.r.index()).isEnable()) {
+					if (rez.uvt.at(2) < cache->at(rez.r.index()).uvt.at(2))//“o˜^Ï‚Ý‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
+						cache->at(rez.r.index()) = rez;
+					
 				}
-				else cache.at(rez.r.index()) = rez;//“o˜^‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î–â“š–³—p‚Å“o˜^
+				else cache->at(rez.r.index()) = rez;//“o˜^‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î–â“š–³—p‚Å“o˜^
 
 			}
 
-			for (const auto& c : cache) {
+			for (const auto& c : *cache) {
 				if (c.isEnable())
 					std::cout << "index " << c.r.index() << std::endl;
 			}
+
+			return cache;
 		}
+
+		anyhit():cache(new closesthits(cachesize)) {}
+	};
+
+
+	template<index cachesize>class materialer {
+		
+		sptr<payloads> cache;
+		payload Shader(const closesthit& att) {
+			return (payload)att.isEnable();
+		}
+
+	public:
+		sptr<const payloads> Shading(const closesthits& hits) {
+			for (const auto& r : hits) {
+				if (!r.isEnable())continue;
+
+				cache->at(r.r.index()) = Shader(r);
+			}
+
+			return cache;
+		}
+
+		materialer():cache(new payloads(cachesize)){}
 	};
 };
