@@ -163,18 +163,32 @@ using payloads = std::vector<payload>;
 //グラボの機能を実装
 namespace toolkit {
 	//レイを配布してくれるやつ
-	class rooter {
-		std::deque<ray> stack;
-		index MakeUniqueRayId();
+	template<size_t cachesize>class rooter {
+		sptr<rays> cache;
+		index MakeUniqueRayId(){
+			static index id = 0;
+			return id++;
+		}
+		index nowhead;//追加されるレイの頭位置
+		index genhead;//次世代の頭位置
 	public:
-		rooter();
+		rooter() :cache(new rays(cachesize)),nowhead(0),genhead(0) {}
 
 		//レイ集合を登録する　カメラも追加できる
-		void RegisterRays(const rays& rs);
+		void RegisterRays(const rays& rs) {
+			for (index i = 0; i < rs.size(); i++)
+				cache->at(nowhead + i) = rs.at(i);
+			nowhead += rs.size();
+		}
 
-		operator bool();
+		rays GetGeneration() {
+			//世代頭から現在ヘッドまでを取り出す
+			auto ret = rays(cache->begin() + genhead, cache->begin() + nowhead);
+			//次世代用に吐き出し
+			genhead = nowhead;
 
-		ray Get();
+			return ret;
+		}
 	};
 
 	template<size_t coren>class broadphaser {

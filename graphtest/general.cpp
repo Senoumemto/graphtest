@@ -167,23 +167,6 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 	return ret;
 }
 
-toolkit::rooter::rooter() {}
-//レイ集合を登録する　カメラも追加できる
-void toolkit::rooter::RegisterRays(const rays& rs) {
-	for (ray r : rs)
-		stack.push_back(r.indexed(this->MakeUniqueRayId()));
-}
-
-toolkit::rooter::operator bool() {
-	return !stack.empty();
-}
-
-ray toolkit::rooter::Get() {
-	auto ret = stack.front();
-	stack.pop_front();
-	return ret;
-}
-
 
 optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
 	//std::cout << "ray" << std::endl;
@@ -244,9 +227,4 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 	}
 
 	return rez;
-}
-
-index toolkit::rooter::MakeUniqueRayId() {
-	static index id = 0;
-	return id++;
 }
