@@ -176,8 +176,10 @@ namespace toolkit {
 
 		//レイ集合を登録する　カメラも追加できる
 		void RegisterRays(const rays& rs) {
-			for (index i = 0; i < rs.size(); i++)
+			for (index i = 0; i < rs.size(); i++) {
 				cache->at(nowhead + i) = rs.at(i);
+				cache->at(nowhead + i).indexed(nowhead + i);
+			}
 			nowhead += rs.size();
 		}
 
@@ -226,6 +228,19 @@ namespace toolkit {
 					return false;
 			}
 			return true;
+		}
+
+		//レイ1つに対してレイトレを行う 結果はレイごとの広域衝突リスト(gindex)
+		std::deque<gindex> Raytrace(const std::array<ray, coren>& rs) {
+			std::deque<gindex> ret;
+			//コアごとにレイトレを行う 結果はレイごとの広域衝突リスト(gindex)
+			for (int i = 0; i < coren; i++) {
+				auto each = cores.at(i).Raytrace(rs.at(i));
+				for (auto& e : each)
+					ret.push_back(e);
+			}
+
+			return ret;
 		}
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
@@ -302,14 +317,15 @@ namespace toolkit {
 				i.parent = this;
 		}
 
-		//レイ1つに対してレイトレを行う 結果はレイごとの広域衝突リスト(gindex)
-		std::deque<gindex> Raytrace(const std::array<ray,coren>& rs) {
-			std::deque<gindex> ret;
-				//コアごとにレイトレを行う 結果はレイごとの広域衝突リスト(gindex)
-			for (int i = 0; i < coren; i++) {
-				auto each = cores.at(i).Raytrace(rs.at(i));
-				for (auto& e : each)
-					ret.push_back(e);
+		sptr<broadphaseResults> Broadphase(const rays& rs) {
+
+			sptr<broadphaseResults> ret(new broadphaseResults);
+
+			for (ray r : rs) {
+				auto r_sHits = cores.front().Raytrace(r);//ブロードフェーズを行い広域衝突情報を受け取る
+
+				for (gindex g : r_sHits)
+					ret->push_back(std::make_pair(r, g));
 			}
 
 			return ret;
