@@ -14,12 +14,15 @@
 #include<Eigen/Core>
 #include<Eigen/Dense>
 
+#include "int24.hpp"
+
 
 using word = int16_t;
 using uword = uint16_t;
 using half = half_float::half;
 using hmat4 = Eigen::Matrix4<half>;
-using index = uint16_t;
+using index = uint16_t;//
+using exindex = uint24;//広域index
 
 template<typename T>using uptr = std::unique_ptr<T>;
 template<typename T>using sptr = std::shared_ptr<T>;
@@ -141,11 +144,16 @@ using closesthit = narrowphaseResultElement;
 
 using closesthits = std::vector<closesthit>;
 
-using payload = bool;
+using payload = hvec3;
 using payloads = std::vector<payload>;
 
 template<typename paytype>using payed_ray = std::pair<ray, paytype>;
 template<typename paytype>using payed_rays = std::vector<payed_ray<paytype>>;
+
+//bitmapを表す
+template<size_t res>struct bitmap :public std::array<hvec3, res* res>{
+
+};
 
 //グラボの機能を実装
 namespace toolkit {
@@ -379,10 +387,21 @@ namespace toolkit {
 		
 		sptr<payloads> cache;
 		payload Shader(const closesthit& att) {
-			return true;
+			using namespace half_float::literal;
+
+			return hvec3({ 1.0_h,1.0_h ,1.0_h });
 		}
 		payload MissShader(const closesthit& str) {
-			return false;
+			using evec3 = Eigen::Vector3<half>;
+			using namespace half_float::literal;
+
+			evec3 direction(str.r.way().data());
+			evec3 light(0.0_h, -1.0_h, 0.0_h);
+
+			auto doter = direction.dot(-light);
+			doter = std::max(0.0_h, doter);
+
+			return hvec3({ doter,doter,doter });
 		}
 
 	public:
@@ -397,11 +416,19 @@ namespace toolkit {
 		materialer():cache(new payloads(cachesize)){}
 	};
 
-	template<typename paytype> class developper {
+	template<typename paytype,size_t res> class developper {
 
 	public:
-		void Develop(const payed_rays<paytype>& hierarchy) {
-			return;
+		sptr<bitmap<res>> Develop(const payed_rays<paytype>& hierarchy) {
+
+			sptr<bitmap<res>> ret(new bitmap<res>());
+
+			for (const payed_ray<paytype>& pr : hierarchy) {
+				if (pr.first.index() >= 0 && pr.first.index() < res * res)
+					ret->at(pr.first.index()) = pr.second;
+			}
+
+			return ret;
 		}
 
 
