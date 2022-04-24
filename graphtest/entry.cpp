@@ -18,11 +18,12 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 
 //装置たち
 struct {
-	toolkit::rooter<ROOTER_CACHE> rooter;
+	toolkit::rooter<ROOTER_CACHE,payload> rooter;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
 	toolkit::anyhit<ANYHIT_CACHE> anyhit;
 	toolkit::materialer<MATERIALER_CACHE> materialer;
+	toolkit::developper<payload> developper;
 }machines;
 
 
@@ -99,6 +100,9 @@ int main() {
 	auto closestHits = machines.anyhit.Anyhit(*npRez, genhead);//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 	auto rayPayloads=machines.materialer.Shading(*closestHits);//レイの表面での振る舞いを計算 next gen raysを生成
+	machines.rooter.AddPayloads(*rayPayloads,genhead);
+
+	machines.developper.Develop(*machines.rooter.GetHierarchy());//レイヒエラルキーから現像する
 
 	return 0;
 }

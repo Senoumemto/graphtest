@@ -144,11 +144,14 @@ using closesthits = std::vector<closesthit>;
 using payload = bool;
 using payloads = std::vector<payload>;
 
+template<typename paytype>using payed_ray = std::pair<ray, paytype>;
+template<typename paytype>using payed_rays = std::vector<payed_ray<paytype>>;
+
 //グラボの機能を実装
 namespace toolkit {
 	//レイを配布してくれるやつ
-	template<size_t cachesize>class rooter {
-		sptr<rays> cache;
+	template<size_t cachesize,typename paytype>class rooter {
+		sptr<payed_rays<paytype>> cache;
 		index MakeUniqueRayId(){
 			static index id = 0;
 			return id++;
@@ -156,13 +159,13 @@ namespace toolkit {
 		index nowhead;//追加されるレイの頭位置
 		index genhead;//次世代の頭位置
 	public:
-		rooter() :cache(new rays(cachesize)),nowhead(0),genhead(0) {}
+		rooter() :cache(new payed_rays<paytype>(cachesize)),nowhead(0),genhead(0) {}
 
 		//レイ集合を登録する　カメラも追加できる
 		void RegisterRays(const rays& rs) {
 			for (index i = 0; i < rs.size(); i++) {
-				cache->at(nowhead + i) = rs.at(i);
-				cache->at(nowhead + i).indexed(nowhead + i);
+				cache->at(nowhead + i).first = rs.at(i);
+				cache->at(nowhead + i).first.indexed(nowhead + i);
 			}
 			nowhead += rs.size();
 		}
@@ -170,11 +173,26 @@ namespace toolkit {
 		rays GetGeneration(index& retGenhead) {
 			retGenhead = index(genhead);
 			//世代頭から現在ヘッドまでを取り出す
-			auto ret = rays(cache->begin() + genhead, cache->begin() + nowhead);
+			rays ret(nowhead - genhead);
+			for (int i = genhead; i < nowhead; i++)
+				ret.at(i) = cache->at(i - genhead).first;
+			//= rays(cache->begin() + genhead, cache->begin() + nowhead, [](const std::pair<ray, paytype>& p) {return p.second; });
 			//次世代用に吐き出し
 			genhead = nowhead;
 
 			return ret;
+		}
+
+		//ペイロードを追加する
+		void AddPayloads(const payloads& ps,index genhead){
+			for (index i = 0; i < ps.size(); i++)
+				cache->at(i + genhead).second = ps.at(i);
+
+		}
+
+		//ヒエラルキーを受け取る
+		sptr<const payed_rays<paytype>> GetHierarchy() {
+			return cache;
 		}
 	};
 
@@ -338,10 +356,10 @@ namespace toolkit {
 					cache->at(rez.r.index() - genhead) = rez;
 			}
 
-			for (const auto& c : *cache) {
-				if (c.uvt.at(2) != std::numeric_limits<half>::infinity())
-					std::cout << "index " << c.r.index() << std::endl;
-			}
+			//for (const auto& c : *cache) {
+			//	if (c.uvt.at(2) != std::numeric_limits<half>::infinity())
+			//		std::cout << "index " << c.r.index() << std::endl;
+			//}
 
 			return cache;
 		}
@@ -379,8 +397,12 @@ namespace toolkit {
 		materialer():cache(new payloads(cachesize)){}
 	};
 
-	class developper {
+	template<typename paytype> class developper {
 
+	public:
+		void Develop(const payed_rays<paytype>& hierarchy) {
+			return;
+		}
 
 
 	};
