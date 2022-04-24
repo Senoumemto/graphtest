@@ -88,12 +88,16 @@ int main() {
 
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
 
+	index genhead;
+	auto generation = machines.rooter.GetGeneration(genhead);//rooterから世代を受け取る
 
-	auto generation = machines.rooter.GetGeneration();//rooterから世代を受け取る
-	auto bpRez = machines.broadphaser.Broadphase(generation);
+	machines.anyhit.InstallGeneration(generation, genhead);//anyhitに今世代の情報を通知してあげる
+	auto bpRez = machines.broadphaser.Broadphase(generation);//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
 
 	auto npRez = machines.narrowphaser.RayTrace(*bpRez);//ブロードフェーズ結果からナローフェーズを行う
-	auto closestHits = machines.anyhit.Anyhit(*npRez);//レイの遮蔽を計算しclosest-hitを計算する
+
+	auto closestHits = machines.anyhit.Anyhit(*npRez, genhead);//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
+
 	auto rayPayloads=machines.materialer.Shading(*closestHits);//レイの表面での振る舞いを計算 next gen raysを生成
 
 	return 0;

@@ -137,23 +137,7 @@ struct narrowphaseResultElement {
 };
 using narrowphaseResults = std::deque<narrowphaseResultElement>;
 
-class closesthit :public narrowphaseResultElement {
-	using super = narrowphaseResultElement;
-protected:
-	bool enable;
-public:
-	closesthit():enable(false){}
-	closesthit(const super& s) :super(s) { closesthit(); }
-
-	void operator=(const super& s) {
-		super::operator=(s);
-		enable = true;
-	}
-
-	bool isEnable()const {
-		return enable;
-	}
-};
+using closesthit = narrowphaseResultElement;
 
 using closesthits = std::vector<closesthit>;
 
@@ -183,7 +167,8 @@ namespace toolkit {
 			nowhead += rs.size();
 		}
 
-		rays GetGeneration() {
+		rays GetGeneration(index& retGenhead) {
+			retGenhead = index(genhead);
 			//¢‘ã“ª‚©‚çŒ»İƒwƒbƒh‚Ü‚Å‚ğæ‚èo‚·
 			auto ret = rays(cache->begin() + genhead, cache->begin() + nowhead);
 			//Ÿ¢‘ã—p‚É“f‚«o‚µ
@@ -347,23 +332,25 @@ namespace toolkit {
 	protected:
 		sptr<closesthits> cache;
 	public:
-		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez) {
+		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez,index genhead) {
 			for (const auto& rez : nprez) {
-				if (cache->at(rez.r.index()).isEnable()) {
-					if (rez.uvt.at(2) < cache->at(rez.r.index()).uvt.at(2))//“o˜^Ï‚İ‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
-						cache->at(rez.r.index()) = rez;
-					
-				}
-				else cache->at(rez.r.index()) = rez;//“o˜^‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î–â“š–³—p‚Å“o˜^
-
+				if (rez.uvt.at(2) < cache->at(rez.r.index() - genhead).uvt.at(2))//“o˜^Ï‚İ‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
+					cache->at(rez.r.index() - genhead) = rez;
 			}
 
 			for (const auto& c : *cache) {
-				if (c.isEnable())
+				if (c.uvt.at(2) != std::numeric_limits<half>::infinity())
 					std::cout << "index " << c.r.index() << std::endl;
 			}
 
 			return cache;
+		}
+		void InstallGeneration(const rays& nowgen,index genhead) {
+			using namespace half_float::literal;
+			for (const ray& r : nowgen) {
+				cache->at(r.index() - genhead).r = r;//ƒŒƒC‚ğ‘}“ü
+				cache->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<half>::infinity() });//–³ŒÀ‰“‚ÅŒğ·
+			}
 		}
 
 		anyhit():cache(new closesthits(cachesize)) {}
@@ -374,20 +361,27 @@ namespace toolkit {
 		
 		sptr<payloads> cache;
 		payload Shader(const closesthit& att) {
-			return (payload)att.isEnable();
+			return true;
+		}
+		payload MissShader(const closesthit& str) {
+			return false;
 		}
 
 	public:
 		sptr<const payloads> Shading(const closesthits& hits) {
-			for (const auto& r : hits) {
-				if (!r.isEnable())continue;
-
-				cache->at(r.r.index()) = Shader(r);
-			}
+			for (const auto& r : hits)
+				cache->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? Shader(r) : MissShader(r);
+			
 
 			return cache;
 		}
 
 		materialer():cache(new payloads(cachesize)){}
+	};
+
+	class developper {
+
+
+
 	};
 };
