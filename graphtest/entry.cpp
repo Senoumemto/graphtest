@@ -6,11 +6,10 @@
 using namespace std;
 using namespace Eigen;
 
-#define CORE_NUM 1
-#define ROOTER_CACHE (128*128)
-#define ANYHIT_CACHE (ROOTER_CACHE)
-#define MATERIALER_CACHE (ROOTER_CACHE)
-#define CAMERA_RESOLUTION 128
+constexpr size_t CORE_NUM = 1;
+constexpr exindex RAYNUM_LIMIT_ALL = (256 * 256);
+constexpr exindex RAYNUM_LIMIT_GENERATION = (256 * 256);
+constexpr size_t CAMERA_RESOLUTION = 256;
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -19,11 +18,11 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 
 //装置たち
 struct {
-	toolkit::rooter<ROOTER_CACHE,payload> rooter;
+	toolkit::rooter<RAYNUM_LIMIT_ALL,payload> rooter;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
-	toolkit::anyhit<ANYHIT_CACHE> anyhit;
-	toolkit::materialer<MATERIALER_CACHE> materialer;
+	toolkit::anyhit<RAYNUM_LIMIT_GENERATION> anyhit;
+	toolkit::materialer<RAYNUM_LIMIT_ALL> materialer;
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 }machines;
 
@@ -34,6 +33,9 @@ struct prephaseRez {
 	sptr<camera> cam;
 };
 prephaseRez PrePhase() {
+
+	SetMaxWH(CAMERA_RESOLUTION, CAMERA_RESOLUTION);//bmpに解像度を設定
+
 	prephaseRez rez;
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
 	dmod model;
@@ -64,8 +66,8 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 
 	//トレーサーにtlasをそれにインストール
 	machines.broadphaser.ptlas = scene;
-
 	machines.narrowphaser.ptlas = scene;
+	machines.materialer.ptlas = scene;
 }
 
 
@@ -76,7 +78,7 @@ int main() {
 
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
 
-	index genhead;
+	exindex genhead;
 	auto generation = machines.rooter.GetGeneration(genhead);//rooterから世代を受け取る
 
 	machines.anyhit.InstallGeneration(generation, genhead);//anyhitに今世代の情報を通知してあげる
@@ -90,8 +92,10 @@ int main() {
 	auto closestHits = machines.anyhit.Anyhit(*npRez, genhead);//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 	cout << "shading began" << endl;
-	auto rayPayloads=machines.materialer.Shading(*closestHits);//レイの表面での振る舞いを計算 next gen raysを生成
+	rays nextgen;
+	auto rayPayloads=machines.materialer.Shading(*closestHits,nextgen);//レイの表面での振る舞いを計算 next gen raysを生成
 	machines.rooter.AddPayloads(*rayPayloads,genhead);
+	//machines.rooter.RegisterRays(nextgen);
 
 	cout << "developping began" << endl;
 	auto pixels = machines.developper.Develop(*machines.rooter.GetHierarchy());//レイヒエラルキーから現像する

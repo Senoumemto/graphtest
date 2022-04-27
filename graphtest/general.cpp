@@ -38,7 +38,7 @@ hvec3 GetCenter(const htri& h) {
 blas::blas(const dmod& d) {
 	triangles.resize(To2noNjou(d.size()));//2のn乗の要素数が必要だ！
 	//まずツリーにモッドを張り付ける
-	for (index i = 0; i < triangles.size(); i++)
+	for (sindex i = 0; i < triangles.size(); i++)
 		if (i < d.size())
 			triangles.at(i)=ToHaabb(d.at(i));
 		else triangles.at(i)=unable_tri;
@@ -55,7 +55,7 @@ blas::blas(const dmod& d) {
 	for (int level=0;;level++,axis=(axis + 1) % 3) {
 		//予約された範囲でaabbを作る
 
-		const index levlength = triangles.size() / pow(2, level);//範囲の長さを算出
+		const sindex levlength = triangles.size() / pow(2, level);//範囲の長さを算出
 
 		//範囲は2^level個だけ存在する
 		for (int l = 0; l < pow(2, level); l++) {
@@ -89,7 +89,7 @@ blas::blas(const dmod& d) {
 
 //指定された軸でソートして2分　次の軸でソートする
 void blas::innerSort(hmod::iterator b, hmod::iterator e, int axis) {
-	index dist = std::distance(b, e);
+	sindex dist = std::distance(b, e);
 	//この範囲でaabbを作る ノード数が1でなければ節
 	blasnode thisnode = { MakeAABB(b, e),dist != 1 };
 	this->tree.push_back(thisnode);

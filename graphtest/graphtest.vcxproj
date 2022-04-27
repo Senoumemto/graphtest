@@ -164,6 +164,9 @@
     <ClInclude Include="int24.hpp" />
     <ClInclude Include="sub.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="out.bmp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -21,8 +21,8 @@ using word = int16_t;
 using uword = uint16_t;
 using half = half_float::half;
 using hmat4 = Eigen::Matrix4<half>;
-using index = uint16_t;//
-using exindex = uint24;//広域index
+using sindex = uint16_t;
+using exindex = uint32_t;
 
 template<typename T>using uptr = std::unique_ptr<T>;
 template<typename T>using sptr = std::shared_ptr<T>;
@@ -83,7 +83,7 @@ public:
 class ray :public std::pair<hvec3, hvec3> {
 	using super = std::pair<hvec3, hvec3>;
 protected:
-	std::optional<index> id;//rooterに登録されるまではidなし
+	std::optional<exindex> id;//rooterに登録されるまではidなし
 public:
 	hvec3& org();
 	hvec3& way();
@@ -94,8 +94,8 @@ public:
 	ray(const super& s) :super(s) {}
 	ray() {}
 
-	ray& indexed(index _id) { id = _id; return *this; }
-	index index()const { return id.value(); }
+	ray& indexed(exindex _id) { id = _id; return *this; }
+	exindex index()const { return id.value(); }
 };
 using rays = std::vector<ray>;
 
@@ -116,16 +116,16 @@ public:
 };
 
 //g-index tlasからtriをたどれるindex
-class gindex :public std::pair<index, index> {
-	using super = std::pair<index, index>;
+class gindex :public std::pair<sindex, sindex> {
+	using super = std::pair<sindex, sindex>;
 public:
 	gindex():super(){}
 	gindex(const super&s):super(s){}
 
-	index& blasId() { return this->first; }
-	index& triId() { return this->second; }
-	const index& blasId() const{ return this->first; }
-	const index& triId() const{ return this->second; }
+	sindex& blasId() { return this->first; }
+	sindex& triId() { return this->second; }
+	const sindex& blasId() const{ return this->first; }
+	const sindex& triId() const{ return this->second; }
 };
 using broadphaseResultElement = std::pair<ray, gindex>;
 using broadphaseResults = std::deque<broadphaseResultElement>;
@@ -160,26 +160,26 @@ namespace toolkit {
 	//レイを配布してくれるやつ
 	template<size_t cachesize,typename paytype>class rooter {
 		sptr<payed_rays<paytype>> cache;
-		index MakeUniqueRayId(){
-			static index id = 0;
+		exindex MakeUniqueRayId(){
+			static exindex id = 0;
 			return id++;
 		}
-		index nowhead;//追加されるレイの頭位置
-		index genhead;//次世代の頭位置
+		exindex nowhead;//追加されるレイの頭位置
+		exindex genhead;//次世代の頭位置
 	public:
 		rooter() :cache(new payed_rays<paytype>(cachesize)),nowhead(0),genhead(0) {}
 
 		//レイ集合を登録する　カメラも追加できる
 		void RegisterRays(const rays& rs) {
-			for (index i = 0; i < rs.size(); i++) {
+			for (exindex i = 0; i < rs.size(); i++) {
 				cache->at(nowhead + i).first = rs.at(i);
 				cache->at(nowhead + i).first.indexed(nowhead + i);
 			}
 			nowhead += rs.size();
 		}
 
-		rays GetGeneration(index& retGenhead) {
-			retGenhead = index(genhead);
+		rays GetGeneration(exindex& retGenhead) {
+			retGenhead = exindex(genhead);
 			//世代頭から現在ヘッドまでを取り出す
 			rays ret(nowhead - genhead);
 			for (int i = genhead; i < nowhead; i++)
@@ -191,9 +191,14 @@ namespace toolkit {
 			return ret;
 		}
 
+		//レイのサイズを返す
+		exindex GetRaysEnd() {
+			return genhead;
+		}
+
 		//ペイロードを追加する
-		void AddPayloads(const payloads& ps,index genhead){
-			for (index i = 0; i < ps.size(); i++)
+		void AddPayloads(const payloads& ps,exindex genhead){
+			for (exindex i = 0; i < ps.size(); i++)
 				cache->at(i + genhead).second = ps.at(i);
 
 		}
@@ -259,7 +264,7 @@ namespace toolkit {
 
 		//トレーサーコア
 		struct core {
-			index nowi;
+			sindex nowi;
 			bool isInv;//ただいま逆行中 移行できるようになるまで逆行を続ける
 			broadphaser<coren>* parent;
 
@@ -267,12 +272,12 @@ namespace toolkit {
 			std::deque<gindex> Raytrace(ray r) {
 				std::deque<gindex> ret;
 				//blasごとに行う
-				for (index blasid = 0; blasid < parent->ptlas->size();blasid++) {
+				for (sindex blasid = 0; blasid < parent->ptlas->size();blasid++) {
 					const auto& blasset = parent->ptlas->at(blasid);
 					//変換をレイに適用する
 					//いまはとりまなしで
 
-					const index leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
+					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
 
 					nowi = 1;//ルートに戻る
 					isInv = false;
@@ -293,7 +298,7 @@ namespace toolkit {
 								if (blasset.second->tree.at(nowi-1).isVertex)
 									nowi = nowi * 2;//かつ節なら順行　2n
 								else {
-									ret.push_back(std::make_pair(blasid,(index)(nowi-leafhead)));//かつは葉なら予約
+									ret.push_back(std::make_pair(blasid,(sindex)(nowi-leafhead)));//かつは葉なら予約
 									if (nowi % 2) {
 										nowi = (nowi - 1) / 2;//右なら逆行
 										isInv = true;
@@ -354,11 +359,11 @@ namespace toolkit {
 	};
 
 
-	template<index cachesize>class anyhit {
+	template<exindex cachesize>class anyhit {
 	protected:
 		sptr<closesthits> cache;
 	public:
-		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez,index genhead) {
+		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez,exindex genhead) {
 			for (const auto& rez : nprez) {
 				if (rez.uvt.at(2) < cache->at(rez.r.index() - genhead).uvt.at(2))//登録済みのtよりrezのtが小さければ再登録
 					cache->at(rez.r.index() - genhead) = rez;
@@ -371,7 +376,7 @@ namespace toolkit {
 
 			return cache;
 		}
-		void InstallGeneration(const rays& nowgen,index genhead) {
+		void InstallGeneration(const rays& nowgen,exindex genhead) {
 			using namespace half_float::literal;
 			for (const ray& r : nowgen) {
 				cache->at(r.index() - genhead).r = r;//レイを挿入
@@ -383,15 +388,33 @@ namespace toolkit {
 	};
 
 
-	template<index cachesize>class materialer {
-		
+	template<exindex cachesize>class materialer {
+	public:
+		sptr<tlas>ptlas;
+	protected:
 		sptr<payloads> cache;
-		payload Shader(const closesthit& att) {
+		payload Shader(const closesthit& att, rays& nextgen) {
 			using namespace half_float::literal;
+			using evec3 = Eigen::Vector3<half>;
+
+			//法線を求める
+			auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
+			evec3 norm = (evec3(tri.at(2).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(1).data()) - evec3(tri.at(0).data()));
+			//ヒット点を求める
+			evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
+
+			//鏡面反射
+			auto a = (-evec3(att.r.way().data())).dot(norm);
+			evec3 refrectway = evec3(att.r.way().data());
+			ray ref;
+			ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
+			ref.org() = hvec3({hitpoint.x(),hitpoint.y(),hitpoint.z()});
+
+			nextgen.push_back(ref);
 
 			return hvec3({ 1.0_h,1.0_h ,1.0_h });
 		}
-		payload MissShader(const closesthit& str) {
+		payload MissShader(const closesthit& str,rays& nextgen) {
 			using evec3 = Eigen::Vector3<half>;
 			using namespace half_float::literal;
 
@@ -405,9 +428,9 @@ namespace toolkit {
 		}
 
 	public:
-		sptr<const payloads> Shading(const closesthits& hits) {
+		sptr<const payloads> Shading(const closesthits& hits,rays& nextgen) {
 			for (const auto& r : hits)
-				cache->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? Shader(r) : MissShader(r);
+				cache->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? Shader(r,nextgen) : MissShader(r,nextgen);
 			
 
 			return cache;
