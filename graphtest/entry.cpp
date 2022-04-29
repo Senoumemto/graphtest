@@ -18,6 +18,8 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 
 //装置たち
 struct {
+	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION> memory;
+
 	toolkit::rooter<RAYNUM_LIMIT_ALL,payload> rooter;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
@@ -57,17 +59,24 @@ struct regphaseRez {
 };
 void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 
+	//メモリを接続
+	//machines.rooter.ConnectMemory(machines.memory.GetAllGenRays());
+	//machines.anyhit.ConnectMemmory(machines.memory.GetNowGenClosests());
+	//machines.materialer.ConnectMemory(machines.memory.GetAllGenPayloads());
+	//machines.developper.ConnectMemory(machines.memory.GetAllGenPayloads());
+
 	//tlasを作製
 	sptr<tlas> scene(new tlas);
 	for (const auto& obj : objs)
 		scene->push_back(make_pair(hmat4::Identity(), obj));//blasとその変換を登録
 
-	machines.rooter.RegisterRays(*cam);
+	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays());
 
 	//トレーサーにtlasをそれにインストール
 	machines.broadphaser.ptlas = scene;
 	machines.narrowphaser.ptlas = scene;
 	machines.materialer.ptlas = scene;
+
 }
 
 
@@ -79,9 +88,9 @@ int main() {
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
 
 	exindex genhead;
-	auto generation = machines.rooter.GetGeneration(genhead);//rooterから世代を受け取る
+	auto generation = machines.rooter.GetGeneration(genhead, machines.memory.GetAllGenRays());//rooterから世代を受け取る
 
-	machines.anyhit.InstallGeneration(generation, genhead);//anyhitに今世代の情報を通知してあげる
+	machines.anyhit.InstallGeneration(generation, genhead, machines.memory.GetNowGenClosests());//anyhitに今世代の情報を通知してあげる
 	cout << "Broadphase began" << endl;
 	auto bpRez = machines.broadphaser.Broadphase(generation);//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
 
@@ -89,16 +98,15 @@ int main() {
 	auto npRez = machines.narrowphaser.RayTrace(*bpRez);//ブロードフェーズ結果からナローフェーズを行う
 
 	cout << "anyhit phase began" << endl;
-	auto closestHits = machines.anyhit.Anyhit(*npRez, genhead);//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
+	auto closestHits = machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetNowGenClosests());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 	cout << "shading began" << endl;
 	rays nextgen;
-	auto rayPayloads=machines.materialer.Shading(*closestHits,nextgen);//レイの表面での振る舞いを計算 next gen raysを生成
-	machines.rooter.AddPayloads(*rayPayloads,genhead);
+	auto rayPayloads=machines.materialer.Shading(*closestHits,nextgen, machines.memory.GetAllGenPayloads());//レイの表面での振る舞いを計算 next gen raysを生成
 	//machines.rooter.RegisterRays(nextgen);
 
 	cout << "developping began" << endl;
-	auto pixels = machines.developper.Develop(*machines.rooter.GetHierarchy());//レイヒエラルキーから現像する
+	auto pixels = machines.developper.Develop(machines.memory.GetAllGenPayloads());//レイヒエラルキーから現像する
 
 	cout << "It is going to be completly soon..." << endl;
 	PrintBmp<CAMERA_RESOLUTION>("out.bmp", *pixels);

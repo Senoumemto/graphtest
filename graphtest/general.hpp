@@ -157,9 +157,34 @@ template<size_t res>struct bitmap :public std::array<hvec3, res* res>{
 
 //グラボの機能を実装
 namespace toolkit {
+	//メモリコレクション
+	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION>class memoryCollection {
+		using payloads = std::vector<payload_type>;
+
+		uptr<rays> rays_allgen;//全世代のrayリスト(グローバル空間)
+		uptr<payloads>pays_allgen;//全世代のペイロードリスト
+
+		uptr<closesthits>closests_gen;//今世代のclosesthit
+	public:
+		memoryCollection() {
+			rays_allgen.reset(new rays(RAYNUM_LIMIT_ALLGEN));
+			pays_allgen.reset(new payloads(RAYNUM_LIMIT_ALLGEN));
+			closests_gen.reset(new closesthits(RAYNUM_LIMIT_GENERATION));
+		}
+
+		rays* GetAllGenRays() { return rays_allgen.get(); }
+		payloads* GetAllGenPayloads() { return pays_allgen.get(); }
+		closesthits* GetNowGenClosests() { return closests_gen.get(); }
+	};
+
+
 	//レイを配布してくれるやつ
 	template<size_t cachesize,typename paytype>class rooter {
-		sptr<payed_rays<paytype>> cache;
+		using payloads = std::vector<paytype>;
+
+		//sptr<payed_rays<paytype>> cache;
+		//ここをメモリに接続する
+
 		exindex MakeUniqueRayId(){
 			static exindex id = 0;
 			return id++;
@@ -167,23 +192,23 @@ namespace toolkit {
 		exindex nowhead;//追加されるレイの頭位置
 		exindex genhead;//次世代の頭位置
 	public:
-		rooter() :cache(new payed_rays<paytype>(cachesize)),nowhead(0),genhead(0) {}
+		rooter():nowhead(0),genhead(0) {}
 
 		//レイ集合を登録する　カメラも追加できる
-		void RegisterRays(const rays& rs) {
+		void RegisterRays(const rays& rs, rays* rays_allgen) {
 			for (exindex i = 0; i < rs.size(); i++) {
-				cache->at(nowhead + i).first = rs.at(i);
-				cache->at(nowhead + i).first.indexed(nowhead + i);
+				rays_allgen->at(nowhead + i) = rs.at(i);
+				rays_allgen->at(nowhead + i).indexed(nowhead + i);
 			}
 			nowhead += rs.size();
 		}
 
-		rays GetGeneration(exindex& retGenhead) {
+		rays GetGeneration(exindex& retGenhead, rays* rays_allgen) {
 			retGenhead = exindex(genhead);
 			//世代頭から現在ヘッドまでを取り出す
 			rays ret(nowhead - genhead);
 			for (int i = genhead; i < nowhead; i++)
-				ret.at(i) = cache->at(i - genhead).first;
+				ret.at(i) = rays_allgen->at(i - genhead);
 			//= rays(cache->begin() + genhead, cache->begin() + nowhead, [](const std::pair<ray, paytype>& p) {return p.second; });
 			//次世代用に吐き出し
 			genhead = nowhead;
@@ -194,18 +219,6 @@ namespace toolkit {
 		//レイのサイズを返す
 		exindex GetRaysEnd() {
 			return genhead;
-		}
-
-		//ペイロードを追加する
-		void AddPayloads(const payloads& ps,exindex genhead){
-			for (exindex i = 0; i < ps.size(); i++)
-				cache->at(i + genhead).second = ps.at(i);
-
-		}
-
-		//ヒエラルキーを受け取る
-		sptr<const payed_rays<paytype>> GetHierarchy() {
-			return cache;
 		}
 	};
 
@@ -361,12 +374,12 @@ namespace toolkit {
 
 	template<exindex cachesize>class anyhit {
 	protected:
-		sptr<closesthits> cache;
+		closesthits* closests_gen;
 	public:
-		sptr<const closesthits> Anyhit(const narrowphaseResults& nprez,exindex genhead) {
+		closesthits* Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
 			for (const auto& rez : nprez) {
-				if (rez.uvt.at(2) < cache->at(rez.r.index() - genhead).uvt.at(2))//登録済みのtよりrezのtが小さければ再登録
-					cache->at(rez.r.index() - genhead) = rez;
+				if (rez.uvt.at(2) < closests_gen->at(rez.r.index() - genhead).uvt.at(2))//登録済みのtよりrezのtが小さければ再登録
+					closests_gen->at(rez.r.index() - genhead) = rez;
 			}
 
 			//for (const auto& c : *cache) {
@@ -374,17 +387,17 @@ namespace toolkit {
 			//		std::cout << "index " << c.r.index() << std::endl;
 			//}
 
-			return cache;
+			return closests_gen;
 		}
-		void InstallGeneration(const rays& nowgen,exindex genhead) {
+		void InstallGeneration(const rays& nowgen,exindex genhead, closesthits* closests_gen) {
 			using namespace half_float::literal;
 			for (const ray& r : nowgen) {
-				cache->at(r.index() - genhead).r = r;//レイを挿入
-				cache->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<half>::infinity() });//無限遠で交差
+				closests_gen->at(r.index() - genhead).r = r;//レイを挿入
+				closests_gen->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<half>::infinity() });//無限遠で交差
 			}
 		}
 
-		anyhit():cache(new closesthits(cachesize)) {}
+		anyhit(){}
 	};
 
 
@@ -392,8 +405,7 @@ namespace toolkit {
 	public:
 		sptr<tlas>ptlas;
 	protected:
-		sptr<payloads> cache;
-		payload Shader(const closesthit& att, rays& nextgen) {
+		payload HitShader(const closesthit& att, rays& nextgen) {
 			using namespace half_float::literal;
 			using evec3 = Eigen::Vector3<half>;
 
@@ -428,32 +440,30 @@ namespace toolkit {
 		}
 
 	public:
-		sptr<const payloads> Shading(const closesthits& hits,rays& nextgen) {
+		const payloads* Shading(const closesthits& hits,rays& nextgen, payloads* pays_allgen) {
 			for (const auto& r : hits)
-				cache->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? Shader(r,nextgen) : MissShader(r,nextgen);
+				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? HitShader(r,nextgen) : MissShader(r,nextgen);
 			
 
-			return cache;
+			return pays_allgen;
 		}
 
-		materialer():cache(new payloads(cachesize)){}
+		materialer(){}
 	};
 
 	template<typename paytype,size_t res> class developper {
-
+		//ここをメモリに接続する
 	public:
-		sptr<bitmap<res>> Develop(const payed_rays<paytype>& hierarchy) {
+		sptr<bitmap<res>> Develop(payloads* pays_allgen) {
 
 			sptr<bitmap<res>> ret(new bitmap<res>());
 
-			for (const payed_ray<paytype>& pr : hierarchy) {
-				if (pr.first.index() >= 0 && pr.first.index() < res * res)
-					ret->at(pr.first.index()) = pr.second;
+			for (exindex i = 0; i < res * res;i++) {
+				ret->at(i) = pays_allgen->at(i);
 			}
 
 			return ret;
 		}
-
 
 	};
 };
