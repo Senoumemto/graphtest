@@ -19,10 +19,29 @@
 
 using word = int16_t;
 using uword = uint16_t;
-using half = half_float::half;
-using hmat4 = Eigen::Matrix4<half>;
+using halff = half_float::half;
+using hmat4 = Eigen::Matrix4<halff>;
 using sindex = uint16_t;
 using exindex = uint32_t;
+
+class exindicesWithHead :public std::vector<exindex> {
+	
+public:
+	using super = std::vector<exindex>;
+	size_t head;
+
+	exindicesWithHead(const super& s) :super(s) { head = 0; }
+	exindicesWithHead(size_t size) :super(size) { head = 0; }
+	exindicesWithHead() :super() { head = 0; }
+
+	exindicesWithHead& push_head(exindex i) {
+		this->at(head) = i;
+
+		head++;
+
+		return *this;
+	}
+};
 
 template<typename T>using uptr = std::unique_ptr<T>;
 template<typename T>using sptr = std::shared_ptr<T>;
@@ -41,15 +60,15 @@ public:
 	const T& y() const { return this->at(1); }
 	const T& z() const { return this->at(2); }
 };
-using hvec3 = vec3<half>;
+using hvec3 = vec3<halff>;
 
 template<typename T>using tri = vec3<vec3<T>>;
 template<typename T>using mod = std::vector<tri<T>>;
 
-using htri = tri<half>;
+using htri = tri<halff>;
 
 using dmod = mod<double>;
-using hmod = mod<half>;
+using hmod = mod<halff>;
 
 class aabb :public std::pair<hvec3, hvec3> {
 	using super = std::pair<hvec3, hvec3>;
@@ -158,23 +177,27 @@ template<size_t res>struct bitmap :public std::array<hvec3, res* res>{
 //グラボの機能を実装
 namespace toolkit {
 	//メモリコレクション
-	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION>class memoryCollection {
+	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES>class memoryCollection {
 		using payloads = std::vector<payload_type>;
 
 		uptr<rays> rays_allgen;//全世代のrayリスト(グローバル空間)
 		uptr<payloads>pays_allgen;//全世代のペイロードリスト
 
 		uptr<closesthits>closests_gen;//今世代のclosesthit
+
+		uptr<exindicesWithHead> terminates;//終端になるレイ(つまり光の発生点)の集合
 	public:
 		memoryCollection() {
 			rays_allgen.reset(new rays(RAYNUM_LIMIT_ALLGEN));
 			pays_allgen.reset(new payloads(RAYNUM_LIMIT_ALLGEN));
 			closests_gen.reset(new closesthits(RAYNUM_LIMIT_GENERATION));
+			terminates.reset(new exindicesWithHead(RAYNUM_LIMIT_TERMINATES));
 		}
 
 		rays* GetAllGenRays() { return rays_allgen.get(); }
 		payloads* GetAllGenPayloads() { return pays_allgen.get(); }
 		closesthits* GetNowGenClosests() { return closests_gen.get(); }
+		exindicesWithHead* GetTerminates() { return terminates.get(); }
 	};
 
 
@@ -203,12 +226,13 @@ namespace toolkit {
 			nowhead += rs.size();
 		}
 
-		rays GetGeneration(exindex& retGenhead, rays* rays_allgen) {
+		rays GetGeneration(exindex& retGenhead, rays* rays_allgen,exindex& generationsize) {
 			retGenhead = exindex(genhead);
+			generationsize = nowhead - genhead;
 			//世代頭から現在ヘッドまでを取り出す
 			rays ret(nowhead - genhead);
 			for (int i = genhead; i < nowhead; i++)
-				ret.at(i) = rays_allgen->at(i - genhead);
+				ret.at(i - genhead) = rays_allgen->at(i);
 			//= rays(cache->begin() + genhead, cache->begin() + nowhead, [](const std::pair<ray, paytype>& p) {return p.second; });
 			//次世代用に吐き出し
 			genhead = nowhead;
@@ -224,7 +248,7 @@ namespace toolkit {
 
 	template<size_t coren>class broadphaser {
 	protected:
-		bool vsAABB(const ray& r, const aabb& box, half tmin = half(0.0), half tmax = std::numeric_limits<half>::infinity()) {
+		bool vsAABB(const ray& r, const aabb& box, halff tmin = halff(0.0), halff tmax = std::numeric_limits<halff>::infinity()) {
 
 			//std::cout << "AABB" << std::endl;
 			//for (const auto& i : box.min())
@@ -244,9 +268,9 @@ namespace toolkit {
 
 
 			for (int a = 0; a < 3; a++) {
-				half invD = half(1.0) / r.way()[a];
-				half t0 = (box.min()[a] - r.org()[a]) * invD;
-				half t1 = (box.max()[a] - r.org()[a]) * invD;
+				halff invD = halff(1.0) / r.way()[a];
+				halff t0 = (box.min()[a] - r.org()[a]) * invD;
+				halff t1 = (box.max()[a] - r.org()[a]) * invD;
 				if (invD < 0.0f)
 					std::swap(t0, t1);
 				tmin = t0 > tmin ? t0 : tmin;
@@ -368,7 +392,7 @@ namespace toolkit {
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
 
-		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez);
+		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit);
 	};
 
 
@@ -376,24 +400,27 @@ namespace toolkit {
 	protected:
 		closesthits* closests_gen;
 	public:
-		closesthits* Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
+		exindex Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
+			exindex anyhitsize = 0;
 			for (const auto& rez : nprez) {
-				if (rez.uvt.at(2) < closests_gen->at(rez.r.index() - genhead).uvt.at(2))//登録済みのtよりrezのtが小さければ再登録
+				if (rez.uvt.at(2) < closests_gen->at(rez.r.index() - genhead).uvt.at(2)) {//登録済みのtよりrezのtが小さければ再登録
 					closests_gen->at(rez.r.index() - genhead) = rez;
+					anyhitsize++;
+				}
 			}
 
 			//for (const auto& c : *cache) {
-			//	if (c.uvt.at(2) != std::numeric_limits<half>::infinity())
+			//	if (c.uvt.at(2) != std::numeric_limits<halff>::infinity())
 			//		std::cout << "index " << c.r.index() << std::endl;
 			//}
 
-			return closests_gen;
+			return anyhitsize;
 		}
 		void InstallGeneration(const rays& nowgen,exindex genhead, closesthits* closests_gen) {
 			using namespace half_float::literal;
 			for (const ray& r : nowgen) {
 				closests_gen->at(r.index() - genhead).r = r;//レイを挿入
-				closests_gen->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<half>::infinity() });//無限遠で交差
+				closests_gen->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() });//無限遠で交差
 			}
 		}
 
@@ -405,19 +432,19 @@ namespace toolkit {
 	public:
 		sptr<tlas>ptlas;
 	protected:
-		payload HitShader(const closesthit& att, rays& nextgen) {
+		payload HitShader(const closesthit& att, rays& nextgen, exindicesWithHead* terminates) {
 			using namespace half_float::literal;
-			using evec3 = Eigen::Vector3<half>;
+			using evec3 = Eigen::Vector3<halff>;
 
 			//法線を求める
 			auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
-			evec3 norm = (evec3(tri.at(2).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(1).data()) - evec3(tri.at(0).data()));
+			evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()));
 			//ヒット点を求める
 			evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
 
 			//鏡面反射
 			auto a = (-evec3(att.r.way().data())).dot(norm);
-			evec3 refrectway = evec3(att.r.way().data());
+			evec3 refrectway = norm;
 			ray ref;
 			ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 			ref.org() = hvec3({hitpoint.x(),hitpoint.y(),hitpoint.z()});
@@ -426,8 +453,8 @@ namespace toolkit {
 
 			return hvec3({ 1.0_h,1.0_h ,1.0_h });
 		}
-		payload MissShader(const closesthit& str,rays& nextgen) {
-			using evec3 = Eigen::Vector3<half>;
+		payload MissShader(const closesthit& str,rays& nextgen, exindicesWithHead* terminates) {
+			using evec3 = Eigen::Vector3<halff>;
 			using namespace half_float::literal;
 
 			evec3 direction(str.r.way().data());
@@ -436,13 +463,17 @@ namespace toolkit {
 			auto doter = direction.dot(-light);
 			doter = std::max(0.0_h, doter);
 
+
+			terminates->push_head(str.r.index());
 			return hvec3({ doter,doter,doter });
 		}
 
 	public:
-		const payloads* Shading(const closesthits& hits,rays& nextgen, payloads* pays_allgen) {
-			for (const auto& r : hits)
-				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<half>::infinity()) ? HitShader(r,nextgen) : MissShader(r,nextgen);
+		const payloads* Shading(const closesthits& hits,rays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
+			for (size_t i = 0; i < anyhitsize; i++) {
+				const auto r = hits.at(i);
+				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates) : MissShader(r, nextgen, terminates);
+			}
 			
 
 			return pays_allgen;

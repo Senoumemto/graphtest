@@ -19,10 +19,10 @@ size_t To2noNjou(size_t i) {
 	return ret;
 }
 
-htri unable_tri({ hvec3({ half(1.0),half(1.0),half(1.0) }),hvec3({half(1.0),half(1.0),half(1.0)}) ,hvec3({half(1.0),half(1.0),half(1.0)})});//かさましの無効な三角形
+htri unable_tri({ hvec3({ halff(1.0),halff(1.0),halff(1.0) }),hvec3({halff(1.0),halff(1.0),halff(1.0)}) ,hvec3({halff(1.0),halff(1.0),halff(1.0)})});//かさましの無効な三角形
 
 hvec3 GetCenter(const htri& h) {
-	hvec3 ret({ half(0),half(0),half(0) });
+	hvec3 ret({ halff(0),halff(0),halff(0) });
 	for (const auto& i : h)
 		for (int j = 0; j < 3; j++)
 			ret.at(j) += i.at(j);
@@ -65,7 +65,7 @@ blas::blas(const dmod& d) {
 			this->tree.push_back(thisnode);
 
 			//AABBを指定された軸で二分したい　センターでソートして2分
-			std::sort(this->triangles.begin() + (levlength * l), this->triangles.begin() + (levlength * (l + 1)), [&](const tri<half>& a, const tri<half>& b) {
+			std::sort(this->triangles.begin() + (levlength * l), this->triangles.begin() + (levlength * (l + 1)), [&](const tri<halff>& a, const tri<halff>& b) {
 				hvec3 ac = GetCenter(a), bc = GetCenter(b);
 
 				return ac.at(axis) > bc.at(axis);
@@ -95,7 +95,7 @@ void blas::innerSort(hmod::iterator b, hmod::iterator e, int axis) {
 	this->tree.push_back(thisnode);
 
 	//AABBを指定された軸で二分したい　センターでソートして2分
-	std::sort(triangles.begin(), triangles.end(), [&](const tri<half>& a, const tri<half>& b) {
+	std::sort(triangles.begin(), triangles.end(), [&](const tri<halff>& a, const tri<halff>& b) {
 		hvec3 ac = GetCenter(a), bc = GetCenter(b);
 
 		return ac.at(axis) > bc.at(axis);
@@ -137,7 +137,7 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 			//orgが0 wayがスクリーンの正規化
 			Eigen::Vector3d scnormed = Eigen::Vector3d(scx, scy, scz).normalized();
 
-			this->push_back(ray({ hvec3({half(0),half(0),half(0)}),hvec3({half(scnormed.x()),half(scnormed.y()),half(scnormed.z())}) }));
+			this->push_back(ray({ hvec3({halff(0),halff(0),halff(0)}),hvec3({halff(scnormed.x()),halff(scnormed.y()),halff(scnormed.z())}) }));
 		}
 }
 
@@ -188,7 +188,7 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	// 微小な定数([Möller97] での値)
 	constexpr float kEpsilon = 1e-6f;
 
-	using evec3 = Eigen::Vector3<half>;
+	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
 	//演算系に
 	evec3 eway(ray.way().data()), eorg(ray.org().data());
@@ -196,34 +196,37 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	evec3 e1 = evec3(tri.at(1).data()) - evec3(tri.at(0).data()), e2 = evec3(tri.at(2).data()) - evec3(tri.at(0).data());
 
 	evec3 alpha = eway.cross(e2);
-	half det = e1.dot(alpha);
+	halff det = e1.dot(alpha);
 
 	if (std::abs(det) < kEpsilon)return nullopt;
 
-	half invdet = half(1) / det;
+	halff invdet = halff(1) / det;
 	evec3 r = eorg - evec3(tri.at(0).data());
 
-	half u = alpha.dot(r) * invdet;
+	halff u = alpha.dot(r) * invdet;
 	if (u < 0.0_h || u>1.0_h)return nullopt;
 
 	evec3 beta = r.cross(e1);
 
-	half v = eway.dot(beta) * invdet;
+	halff v = eway.dot(beta) * invdet;
 	if (v < 0.0_h || u + v>1.0_h)return nullopt;
 
-	half t = e2.dot(beta) * invdet;
+	halff t = e2.dot(beta) * invdet;
 	if (t < 0.0_h)return nullopt;
 
 	return hvec3({ u, v, t });
 }
 
-sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez) {
+sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit) {
 	sptr<narrowphaseResults> rez(new narrowphaseResults);
 
 	for (const auto& bp : bprez) {
 		auto uvt = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
 
-		if (uvt.has_value())rez->push_back(narrowphaseResultElement(bp, uvt.value()));
+		if (uvt.has_value()) {
+			if (uvt.value().at(2) > param_ignoreNearHit)//無視値よりおおきければ
+				rez->push_back(narrowphaseResultElement(bp, uvt.value()));
+		}
 	}
 
 	return rez;
