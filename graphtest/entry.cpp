@@ -18,7 +18,7 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-const string MODEL_PATH = "../monkey.dae";
+const string MODEL_PATH = "../ico.dae";
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
