@@ -438,7 +438,7 @@ namespace toolkit {
 
 			//法線を求める
 			auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
-			evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()));
+			evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data())).normalized();
 			//ヒット点を求める
 			evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
 
@@ -451,7 +451,7 @@ namespace toolkit {
 
 			nextgen.push_back(ref);
 
-			return hvec3({ 1.0_h,1.0_h ,1.0_h });
+			return hvec3({ refrectway.x(),refrectway.y() ,refrectway.z()});
 		}
 		payload MissShader(const closesthit& str,rays& nextgen, exindicesWithHead* terminates) {
 			using evec3 = Eigen::Vector3<halff>;

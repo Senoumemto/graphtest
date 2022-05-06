@@ -25,7 +25,7 @@ int MakeTestSquare(dmod& ret) {
 
 void ModLoader(const std::string& path,dmod& ret) {
 	Assimp::Importer myImp;
-	myImp.ReadFile(path,aiProcess_Triangulate);
+	myImp.ReadFile(path,aiProcess_Triangulate|aiProcessPreset_TargetRealtime_MaxQuality);
 
 	for (int m = 0; m < myImp.GetScene()->mNumMeshes; m++)
 		for (int f = 0; f < myImp.GetScene()->mMeshes[m]->mNumFaces; f++) {

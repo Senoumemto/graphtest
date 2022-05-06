@@ -7,15 +7,18 @@ using namespace std;
 using namespace Eigen;
 using namespace half_float::literal;
 
-constexpr size_t MAX_GENERATIONS = 4;
+constexpr size_t MAX_GENERATIONS = 10;
 
 constexpr size_t CORE_NUM = 1;
-constexpr exindex RAYNUM_LIMIT_ALL = (256 * 256 * 3);
-constexpr exindex RAYNUM_LIMIT_GENERATION = (256 * 256);
+constexpr size_t CAMERA_RESOLUTION = 1024;
+constexpr exindex RAYNUM_LIMIT_ALL = (CAMERA_RESOLUTION * CAMERA_RESOLUTION * 3);
+constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
-constexpr size_t CAMERA_RESOLUTION = 256;
+
 
 const halff IGNORE_NEARHIT = 0.01_h;
+
+const string MODEL_PATH = "../monkey.dae";
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -47,7 +50,7 @@ prephaseRez PrePhase() {
 	prephaseRez rez;
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
 	dmod model;
-	ModLoader("../ico.dae", model);
+	ModLoader(MODEL_PATH, model);
 	//MakeTestSquare(model);
 	sptr<blas> obj(new blas(model));
 	rez.objs.push_back(obj);
@@ -113,12 +116,13 @@ int main() {
 		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize);//レイの表面での振る舞いを計算 next gen raysを生成
 		machines.rooter.RegisterRays(nextgen, machines.memory.GetAllGenRays());
 
-		cout << gen << "th generation report\n"
-			<< "\tgensize= " << generation.size() << "\n"
-			<< "\tbroadphase hits num: " << bpRez->size() << "\n"
-			<< "\tnarrowphase hits num: " << npRez->size() << "\n"
-			<< "\tanyhits num: " << anyhitsize << "\n"
-			<< "\tnext generation size: " << nextgen.size() << "\n";
+		cout << "\t" << gen << "th generation report\n"
+			<< "\t\tgensize= " << generation.size() << "\n"
+			<< "\t\tbroadphase hits num: " << bpRez->size() << "\n"
+			<< "\t\tnarrowphase hits num: " << npRez->size() << "\n"
+			<< "\t\tanyhits num: " << anyhitsize << "\n"
+			<< "\t\tnext generation size: " << nextgen.size() << "\n\n"
+			<< "\t\tterminates size: " << machines.memory.GetTerminates()->head << "\n";
 
 		//次世代レイが発生しないなら終了
 		if (nextgen.empty())break;
