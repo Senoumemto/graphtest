@@ -445,10 +445,11 @@ namespace toolkit {
 			//‹¾–Ê”½ŽË
 			auto a = (-evec3(att.r.way().data())).dot(norm);
 			evec3 refrectway = (norm * a*2.0_h- evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
+
+
 			ray ref;
 			ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 			ref.org() = hvec3({hitpoint.x(),hitpoint.y(),hitpoint.z()});
-
 			nextgen.push_back(ref);
 
 			return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,0.0_h });
