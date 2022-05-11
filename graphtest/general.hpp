@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <deque>
 #include <optional>
+#include <functional>
 
 #include<Eigen/Core>
 #include<Eigen/Dense>
@@ -59,6 +60,23 @@ public:
 	const T& x() const { return this->at(0); }
 	const T& y() const { return this->at(1); }
 	const T& z() const { return this->at(2); }
+
+	static vec3<T> Make(const Eigen::Vector3<T>& v) {
+		vec3<T> ret;
+
+		for (size_t i = 0; i < 3; i++)
+			ret.at(i) = v[i];
+
+		return ret;
+	}
+	static vec3<T> Make(const Eigen::Vector4<T>& v,bool divByW) {
+		vec3<T> ret;
+
+		for (size_t i = 0; i < 3; i++)
+			ret.at(i) = v[i] / (divByW ? v[3] : (T)1.0);
+
+		return ret;
+	}
 };
 using hvec3 = vec3<halff>;
 
@@ -307,12 +325,17 @@ namespace toolkit {
 
 			//rで親のptlasに対してレイトレーシングを行い広域衝突情報のリストを返す
 			std::deque<gindex> Raytrace(ray r) {
+				using evec3 = Eigen::Vector3<halff>;
+				using evec4 = Eigen::Vector4<halff>;
+				using namespace half_float::literal;
+
 				std::deque<gindex> ret;
 				//blasごとに行う
 				for (sindex blasid = 0; blasid < parent->ptlas->size();blasid++) {
 					const auto& blasset = parent->ptlas->at(blasid);
 					//変換をレイに適用する
-					//いまはとりまなしで
+					r.way() = hvec3::Make(evec4(blasset.first * evec4(r.way().x(), r.way().y(), r.way().z(), 0.0_h)), false);
+					r.org() = hvec3::Make(evec4(blasset.first * evec4(r.org().x(), r.org().y(), r.org().z(), 1.0_h)), true);
 
 					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
 
@@ -431,49 +454,14 @@ namespace toolkit {
 	template<exindex cachesize>class materialer {
 	public:
 		sptr<tlas>ptlas;
-	protected:
-		payload HitShader(const closesthit& att, rays& nextgen, exindicesWithHead* terminates) {
-			using namespace half_float::literal;
-			using evec3 = Eigen::Vector3<halff>;
+		using shader = std::function<payload(const closesthit&, rays&, exindicesWithHead*, sptr<tlas>)>;
 
-			//法線を求める
-			auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
-			evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data())).normalized();
-			//ヒット点を求める
-			evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
+		shader HitShader, MissShader;
 
-			//鏡面反射
-			auto a = (-evec3(att.r.way().data())).dot(norm);
-			evec3 refrectway = (norm * a*2.0_h- evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
-
-
-			ray ref;
-			ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
-			ref.org() = hvec3({hitpoint.x(),hitpoint.y(),hitpoint.z()});
-			nextgen.push_back(ref);
-
-			return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,0.0_h });
-		}
-		payload MissShader(const closesthit& str,rays& nextgen, exindicesWithHead* terminates) {
-			using evec3 = Eigen::Vector3<halff>;
-			using namespace half_float::literal;
-
-			evec3 direction(str.r.way().data());
-			evec3 light(0.0_h, -1.0_h, 0.0_h);
-
-			auto doter = direction.dot(-light);
-			doter = std::max(0.0_h, doter);
-
-
-			terminates->push_head(str.r.index());
-			return hvec3({ doter,doter,doter });
-		}
-
-	public:
 		const payloads* Shading(const closesthits& hits,rays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
-				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates) : MissShader(r, nextgen, terminates);
+				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates, ptlas) : MissShader(r, nextgen, terminates, ptlas);
 			}
 			
 

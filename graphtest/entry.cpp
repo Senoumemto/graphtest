@@ -10,7 +10,7 @@ using namespace half_float::literal;
 constexpr size_t MAX_GENERATIONS = 10;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 128;
+constexpr size_t CAMERA_RESOLUTION = 256;
 constexpr exindex RAYNUM_LIMIT_ALL = (CAMERA_RESOLUTION * CAMERA_RESOLUTION * 3);
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
@@ -18,7 +18,7 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-const string MODEL_PATH = "../ico.dae";
+const string MODEL_PATH = "../dia.dae";
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -37,6 +37,42 @@ struct {
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 }machines;
 
+payload HitShader(const closesthit& att, rays& nextgen, exindicesWithHead* terminates,sptr<tlas> ptlas) {
+	using namespace half_float::literal;
+	using evec3 = Eigen::Vector3<halff>;
+
+	//法線を求める
+	auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
+	evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data())).normalized();
+	//ヒット点を求める
+	evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
+
+	//鏡面反射
+	auto a = (-evec3(att.r.way().data())).dot(norm);
+	evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
+
+
+	ray ref;
+	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
+	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
+	nextgen.push_back(ref);
+
+	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,0.0_h });
+}
+payload MissShader(const closesthit& str, rays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
+	using evec3 = Eigen::Vector3<halff>;
+	using namespace half_float::literal;
+
+	evec3 direction(str.r.way().data());
+	evec3 light(0.0_h, -1.0_h, 0.0_h);
+
+	auto doter = direction.dot(-light);
+	doter = std::max(0.0_h, doter);
+
+
+	terminates->push_head(str.r.index());
+	return hvec3({ doter,doter,doter });
+}
 
 //手順0(pre-phase)  アウターで行われるデータ構造の準備
 struct prephaseRez {
@@ -51,11 +87,10 @@ prephaseRez PrePhase() {
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
 	dmod model;
 	ModLoader(MODEL_PATH, model);
-	//MakeTestSquare(model);
 	sptr<blas> obj(new blas(model));
 	rez.objs.push_back(obj);
 
-
+	//カメラを生成
 	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -1.0));
 
 	return rez;
@@ -67,12 +102,6 @@ struct regphaseRez {
 	sptr<tlas> scene;
 };
 void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
-
-	//メモリを接続
-	//machines.rooter.ConnectMemory(machines.memory.GetAllGenRays());
-	//machines.anyhit.ConnectMemmory(machines.memory.GetNowGenClosests());
-	//machines.materialer.ConnectMemory(machines.memory.GetAllGenPayloads());
-	//machines.developper.ConnectMemory(machines.memory.GetAllGenPayloads());
 
 	//tlasを作製
 	sptr<tlas> scene(new tlas);
@@ -86,6 +115,9 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	machines.narrowphaser.ptlas = scene;
 	machines.materialer.ptlas = scene;
 
+	//シェーダーをインストール
+	machines.materialer.HitShader = HitShader;
+	machines.materialer.MissShader = MissShader;
 }
 
 
