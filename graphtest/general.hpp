@@ -475,7 +475,7 @@ namespace toolkit {
 	template<typename paytype,size_t res> class developper {
 		//‚±‚±‚ğƒƒ‚ƒŠ‚ÉÚ‘±‚·‚é
 	public:
-		sptr<bitmap<res>> Develop(payloads* pays_allgen) {
+		sptr<bitmap<res>> Develop(payloads* pays_allgen,exindicesWithHead* terminates) {
 
 			sptr<bitmap<res>> ret(new bitmap<res>());
 
