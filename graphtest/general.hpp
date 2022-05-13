@@ -14,6 +14,7 @@
 
 #include<Eigen/Core>
 #include<Eigen/Dense>
+#include<Eigen/Geometry>
 
 #include "int24.hpp"
 
@@ -324,7 +325,7 @@ namespace toolkit {
 			broadphaser<coren>* parent;
 
 			//rで親のptlasに対してレイトレーシングを行い広域衝突情報のリストを返す
-			std::deque<gindex> Raytrace(ray r) {
+			std::deque<gindex> Raytrace(ray& r) {
 				using evec3 = Eigen::Vector3<halff>;
 				using evec4 = Eigen::Vector4<halff>;
 				using namespace half_float::literal;
@@ -397,6 +398,7 @@ namespace toolkit {
 
 			sptr<broadphaseResults> ret(new broadphaseResults);
 
+			//rsから複製してrを得る
 			for (ray r : rs) {
 				auto r_sHits = cores.front().Raytrace(r);//ブロードフェーズを行い広域衝突情報を受け取る
 
@@ -449,7 +451,6 @@ namespace toolkit {
 
 		anyhit(){}
 	};
-
 
 	template<exindex cachesize>class materialer {
 	public:

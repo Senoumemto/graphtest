@@ -6,11 +6,12 @@
 using namespace std;
 using namespace Eigen;
 using namespace half_float::literal;
+using Affine3h = Eigen::Transform<halff, 3, 2>;
 
 constexpr size_t MAX_GENERATIONS = 10;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 256;
+constexpr size_t CAMERA_RESOLUTION = 512;
 constexpr exindex RAYNUM_LIMIT_ALL = (CAMERA_RESOLUTION * CAMERA_RESOLUTION * 3);
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
@@ -18,7 +19,7 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-const string MODEL_PATH = "../dia.dae";
+const string MODEL_PATH = "../ico.dae";
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -57,7 +58,8 @@ payload HitShader(const closesthit& att, rays& nextgen, exindicesWithHead* termi
 	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
 	nextgen.push_back(ref);
 
-	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,0.0_h });
+	//return hvec3({ 1.0_h,1.0_h,1.0_h });
+	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,std::abs<halff>(refrectway.z()) });
 }
 payload MissShader(const closesthit& str, rays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
 	using evec3 = Eigen::Vector3<halff>;
@@ -102,11 +104,13 @@ struct regphaseRez {
 	sptr<tlas> scene;
 };
 void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
+	using evec3 = Eigen::Vector3<halff>;
 
 	//tlasを作製
 	sptr<tlas> scene(new tlas);
 	for (const auto& obj : objs)
-		scene->push_back(make_pair(hmat4::Identity(), obj));//blasとその変換を登録
+		scene->push_back(make_pair(Affine3h(Eigen::Translation<halff, 3>(evec3(0.0_h, 0.0_h, 0.0_h))).matrix().inverse(), obj));//blasとその変換を登録
+
 
 	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays());
 
