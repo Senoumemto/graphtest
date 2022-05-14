@@ -195,11 +195,25 @@ using closesthit = narrowphaseResultElement;
 
 using closesthits = std::vector<closesthit>;
 
-struct _payload {
-	hvec3 color;
-	exindex parent;
+//レイの属性として親とコンテンツを持つ
+template<typename contentType>class payloadbase {
+
+	contentType content;
+
+public:
+	virtual payloadbase& InstallContent(const contentType& c) {
+		this->content = c;
+
+		return *this;
+	}
+	const contentType& GetContent()const { return content; }
+
+	exindex parent;//親を示すexindex(全世代)
+
+
 };
-using payload = _payload;
+using payloadContent = hvec3;//ペイロードの内容(今回はvec3で色)
+using payload = payloadbase<payloadContent>;
 using payloads = std::vector<payload>;
 
 template<typename paytype>using payed_ray = std::pair<ray, paytype>;
@@ -484,14 +498,14 @@ namespace toolkit {
 	template<exindex cachesize>class materialer {
 	public:
 		sptr<tlas>ptlas;
-		using shader = std::function<payload(const closesthit&, parentedRays&, exindicesWithHead*, sptr<tlas>)>;
+		using shader = std::function<payloadContent(const closesthit&, parentedRays&, exindicesWithHead*, sptr<tlas>)>;
 
 		shader HitShader, MissShader;
 
 		const payloads* Shading(const closesthits& hits,parentedRays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
-				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates, ptlas) : MissShader(r, nextgen, terminates, ptlas);
+				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates, ptlas) : MissShader(r, nextgen, terminates, ptlas));
 			}
 			
 			return pays_allgen;
@@ -508,7 +522,7 @@ namespace toolkit {
 			sptr<bitmap<res>> ret(new bitmap<res>());
 
 			for (exindex i = 0; i < res * res;i++) {
-				ret->at(i) = pays_allgen->at(i).color;
+				ret->at(i) = pays_allgen->at(i).GetContent();
 			}
 
 			return ret;

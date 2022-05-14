@@ -38,8 +38,8 @@ struct {
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 }machines;
 
-payload HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
-payload MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
+payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
+payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
 #include "shaders.cpp"
 
 

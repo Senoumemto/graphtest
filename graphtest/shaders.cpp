@@ -1,6 +1,6 @@
 #include "general.hpp"
 
-payload HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
+payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
 	using namespace half_float::literal;
 	using evec3 = Eigen::Vector3<halff>;
 
@@ -21,9 +21,9 @@ payload HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHea
 	nextgen.push_back(parentedRay({ std::numeric_limits<exindex>::max(), ref }));
 
 	//return hvec3({ 1.0_h,1.0_h,1.0_h });
-	return { hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()) ,std::abs<halff>(refrectway.z()) }) ,std::numeric_limits<exindex>::max()};
+	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
 }
-payload MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
+payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
 
@@ -35,5 +35,5 @@ payload MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHe
 
 
 	terminates->push_head(str.r.index());
-	return { hvec3({ doter,doter,doter }), std::numeric_limits<exindex>::max() };
+	return hvec3({ doter,doter,doter });
 }
