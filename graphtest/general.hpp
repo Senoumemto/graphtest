@@ -136,6 +136,19 @@ public:
 	exindex index()const { return id.value(); }
 };
 using rays = std::vector<ray>;
+//親を持つレイ シェーダーからrooterまでのnextgenの表現に使ってね
+class parentedRay :private std::pair<exindex, ray> {
+	using super = std::pair<exindex, ray>;
+public:
+	parentedRay(const super& s) :super(s) {}
+	parentedRay(const ray& r) :super(std::numeric_limits<exindex>::max(), r) {}
+
+	exindex& index() { return this->first; }
+	ray& GetRay() { return this->second; }
+	const exindex& index() const{ return this->first; }
+	const ray& GetRay() const{ return this->second; }
+};
+using parentedRays = std::vector<parentedRay>;
 
 //カメラ
 class camera : public rays {
@@ -182,7 +195,11 @@ using closesthit = narrowphaseResultElement;
 
 using closesthits = std::vector<closesthit>;
 
-using payload = hvec3;
+struct _payload {
+	hvec3 color;
+	exindex parent;
+};
+using payload = _payload;
 using payloads = std::vector<payload>;
 
 template<typename paytype>using payed_ray = std::pair<ray, paytype>;
@@ -236,11 +253,23 @@ namespace toolkit {
 	public:
 		rooter():nowhead(0),genhead(0) {}
 
-		//レイ集合を登録する　カメラも追加できる
-		void RegisterRays(const rays& rs, rays* rays_allgen) {
+		//レイ集合を登録する　親のいない(0世代のレイを追加)=カメラ
+		void RegisterRays(const rays& rs, rays* rays_allgen, payloads* pays_allgen) {
 			for (exindex i = 0; i < rs.size(); i++) {
 				rays_allgen->at(nowhead + i) = rs.at(i);
 				rays_allgen->at(nowhead + i).indexed(nowhead + i);
+
+				pays_allgen->at(nowhead + i).parent = std::numeric_limits<exindex>::max();
+			}
+			nowhead += rs.size();
+		}
+		//レイ集合を登録する　親つき=nextgen
+		void RegisterRays(const parentedRays& rs, rays* rays_allgen,payloads* pays_allgen) {
+			for (exindex i = 0; i < rs.size(); i++) {
+				rays_allgen->at(nowhead + i) = rs.at(i).GetRay();
+				rays_allgen->at(nowhead + i).indexed(nowhead + i);
+
+				pays_allgen->at(nowhead + i).parent = rs.at(i).index();//ペイロードに親情報を追加
 			}
 			nowhead += rs.size();
 		}
@@ -455,17 +484,16 @@ namespace toolkit {
 	template<exindex cachesize>class materialer {
 	public:
 		sptr<tlas>ptlas;
-		using shader = std::function<payload(const closesthit&, rays&, exindicesWithHead*, sptr<tlas>)>;
+		using shader = std::function<payload(const closesthit&, parentedRays&, exindicesWithHead*, sptr<tlas>)>;
 
 		shader HitShader, MissShader;
 
-		const payloads* Shading(const closesthits& hits,rays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
+		const payloads* Shading(const closesthits& hits,parentedRays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
 				pays_allgen->at(r.r.index()) = (r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates, ptlas) : MissShader(r, nextgen, terminates, ptlas);
 			}
 			
-
 			return pays_allgen;
 		}
 
@@ -480,7 +508,7 @@ namespace toolkit {
 			sptr<bitmap<res>> ret(new bitmap<res>());
 
 			for (exindex i = 0; i < res * res;i++) {
-				ret->at(i) = pays_allgen->at(i);
+				ret->at(i) = pays_allgen->at(i).color;
 			}
 
 			return ret;

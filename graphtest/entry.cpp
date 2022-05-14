@@ -38,8 +38,8 @@ struct {
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 }machines;
 
-payload HitShader(const closesthit& att, rays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
-payload MissShader(const closesthit& str, rays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
+payload HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
+payload MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
 #include "shaders.cpp"
 
 
@@ -79,7 +79,7 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 		scene->push_back(make_pair(Affine3h(Eigen::Translation<halff, 3>(evec3(0.0_h, 0.0_h, 0.0_h))).matrix().inverse(), obj));//blasとその変換を登録
 
 
-	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays());
+	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
 
 	//トレーサーにtlasをそれにインストール
 	machines.broadphaser.ptlas = scene;
@@ -115,9 +115,9 @@ int main() {
 		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetNowGenClosests());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 		cout << "shading began" << endl;
-		rays nextgen;
+		parentedRays nextgen;
 		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize);//レイの表面での振る舞いを計算 next gen raysを生成
-		machines.rooter.RegisterRays(nextgen, machines.memory.GetAllGenRays());
+		machines.rooter.RegisterRays(nextgen, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
 
 		cout << "\t" << gen << "th generation report\n"
 			<< "\t\tgensize= " << generation.size() << "\n"
