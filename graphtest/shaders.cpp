@@ -18,7 +18,7 @@ payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindices
 	ray ref;
 	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
-	nextgen.push_back(parentedRay({ std::numeric_limits<exindex>::max(), ref }));
+	nextgen.push_back(parentedRay({ att.r.index(), ref }));
 
 	//return hvec3({ 1.0_h,1.0_h,1.0_h });
 	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
