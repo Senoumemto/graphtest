@@ -3,6 +3,8 @@
 #include"sub.hpp"
 #include "int24.hpp"
 
+using evec3 = Eigen::Vector3<halff>;
+
 using namespace std;
 using namespace Eigen;
 using namespace half_float::literal;
@@ -12,14 +14,17 @@ constexpr size_t MAX_GENERATIONS = 10;
 
 constexpr size_t CORE_NUM = 1;
 constexpr size_t CAMERA_RESOLUTION = 512;
-constexpr exindex RAYNUM_LIMIT_ALL = (CAMERA_RESOLUTION * CAMERA_RESOLUTION * 3);
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
+constexpr exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS;
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-const string MODEL_PATH = "../ico.dae";
+//const std::vector<std::pair<string, Affine3h>> model_gen = {
+//	std::make_pair("../plane.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,0.0_h)))),
+//	std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h))))};
+const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
@@ -54,10 +59,12 @@ prephaseRez PrePhase() {
 
 	prephaseRez rez;
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
-	dmod model;
-	ModLoader(MODEL_PATH, model);
-	sptr<blas> obj(new blas(model));
-	rez.objs.push_back(obj);
+	for (const auto& p : model_gen) {
+		dmod tempmod;
+		ModLoader(p.first, tempmod);
+		sptr<blas> obj(new blas(tempmod));
+		rez.objs.push_back(obj);
+	}
 
 	//カメラを生成
 	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -1.0));
@@ -71,12 +78,11 @@ struct regphaseRez {
 	sptr<tlas> scene;
 };
 void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
-	using evec3 = Eigen::Vector3<halff>;
 
 	//tlasを作製
 	sptr<tlas> scene(new tlas);
-	for (const auto& obj : objs)
-		scene->push_back(make_pair(Affine3h(Eigen::Translation<halff, 3>(evec3(0.0_h, 0.0_h, 0.0_h))).matrix().inverse(), obj));//blasとその変換を登録
+	for (int i=0;i<objs.size();i++)
+		scene->push_back(make_pair(model_gen.at(i).second.matrix().inverse(), objs.at(i)));//blasとその変換を登録
 
 
 	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());

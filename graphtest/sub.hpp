@@ -43,9 +43,9 @@ template<size_t res>void PrintBmp(const std::string& path,const bitmap<res>& dat
 
 	for (int y = 0; y < g->height; y++)
 		for (int x = 0; x < g->width; x++) {
-			g->data[y][x].r = dat.at(y * res + x).at(0)*255;
-			g->data[y][x].g = dat.at(y * res + x).at(1)*255;
-			g->data[y][x].b = dat.at(y * res + x).at(2)*255;
+			g->data[g->height-1-y][x].r = dat.at(y * res + x).at(0)*255;
+			g->data[g->height-1-y][x].g = dat.at(y * res + x).at(1)*255;
+			g->data[g->height-1-y][x].b = dat.at(y * res + x).at(2)*255;
 		}
 
 	WriteBmp(path.c_str(), g.get());
