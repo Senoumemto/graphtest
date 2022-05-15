@@ -21,10 +21,10 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-//const std::vector<std::pair<string, Affine3h>> model_gen = {
-//	std::make_pair("../plane.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,0.0_h)))),
-//	std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h))))};
-const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
+const std::vector<std::pair<string, Affine3h>> model_gen = {
+	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-1.0_h,0.0_h)))),
+	std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h))))};
+//const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
