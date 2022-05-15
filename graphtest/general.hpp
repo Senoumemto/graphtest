@@ -78,6 +78,10 @@ public:
 
 		return ret;
 	}
+
+	static vec3<T> Zero() {
+		return vec3<T>({T(0.0),T(0.0),T(0.0)});
+	}
 };
 using hvec3 = vec3<halff>;
 
@@ -212,7 +216,28 @@ public:
 
 
 };
-using payloadContent = hvec3;//ペイロードの内容(今回はvec3で色)
+
+class payloadContent :private std::pair<hvec3, hvec3> {
+	using super = std::pair<hvec3, hvec3>;
+	
+public:
+	hvec3& scale() { return this->first; }//色空間の拡縮(反射)
+	hvec3& translate() { return this->second; }//色の並進(発光)
+
+	const hvec3& scale() const{ return this->first; }//色空間の拡縮(反射)
+	const hvec3& translate() const{ return this->second; }//色の並進(発光)
+
+	payloadContent(const hvec3& scale, const hvec3& trans) { 
+		this->scale() = scale;
+		this->translate() = trans;
+	}
+	payloadContent(const std::array<halff,3>& scale, const std::array<halff, 3>& trans):payloadContent(hvec3(scale), hvec3(trans)) {}
+	payloadContent(const hvec3& scale):payloadContent(scale, hvec3::Zero()) {}
+	payloadContent(const std::array<halff,3>& scale):payloadContent(hvec3(scale)) {}
+	payloadContent(const super&s):super(s){}
+	payloadContent(const payloadContent&c):payloadContent(c.scale(),c.translate()){}
+	payloadContent(){}
+};
 using payload = payloadbase<payloadContent>;
 using payloads = std::vector<payload>;
 
@@ -515,15 +540,49 @@ namespace toolkit {
 	};
 
 	template<typename paytype,size_t res> class developper {
-		//ここをメモリに接続する
+		//eeにerを掛け加える
+		void MulHvec(hvec3& ee,const hvec3& er) {
+			for (int i = 0; i < 3; i++)
+				ee.at(i) *= er.at(i);
+		}
+		void AddHvec(hvec3& ee, const hvec3& er) {
+			for (int i = 0; i < 3; i++)
+				ee.at(i) += er.at(i);
+		}
+		void ClampHvec3(hvec3& ee,const halff& min=halff(0.0), const halff& max=halff(1.0)) {
+			for (int i = 0; i < 3; i++)
+				ee.at(i) = std::clamp(ee.at(i), min, max);
+		}
 	public:
 		sptr<bitmap<res>> Develop(payloads* pays_allgen,exindicesWithHead* terminates) {
 
 			sptr<bitmap<res>> ret(new bitmap<res>());
+			int hei = 0;
+			for (exindex tnowi : *terminates) {
+				payload tnow = pays_allgen->at(tnowi);//現在のノード　終端から始める
+				hvec3 color = hvec3::Zero();
 
-			for (exindex i = 0; i < res * res;i++) {
-				ret->at(i) = pays_allgen->at(i).GetContent();
+				while (1) {
+					//処理を行う
+					MulHvec(color, tnow.GetContent().scale());
+					AddHvec(color, tnow.GetContent().translate());
+
+					//ここが終端なら
+					if (tnow.parent == std::numeric_limits<exindex>::max()) {
+						ClampHvec3(color);//色領域へ丸める
+						ret->at(tnowi) = color;
+						
+						break;
+					}
+					tnowi = tnow.parent;
+					tnow = pays_allgen->at(tnowi);//親に移動する
+				}
+				
 			}
+
+			//for (exindex i = 0; i < res * res;i++) {
+			//	ret->at(i) = pays_allgen->at(i).GetContent();
+			//}
 
 			return ret;
 		}

@@ -20,8 +20,8 @@ payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindices
 	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
 	nextgen.push_back(parentedRay({ att.r.index(), ref }));
 
-	//return hvec3({ 1.0_h,1.0_h,1.0_h });
-	return hvec3({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
+	return payloadContent({ 1.0_h,1.0_h,1.0_h });
+	//return payloadContent({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
 }
 payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
 	using evec3 = Eigen::Vector3<halff>;
@@ -33,7 +33,7 @@ payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindice
 	auto doter = direction.dot(-light);
 	doter = std::max(0.0_h, doter);
 
-
 	terminates->push_head(str.r.index());
-	return hvec3({ doter,doter,doter });
+
+	return payloadContent({1.0_h,1.0_h ,1.0_h }, { doter,doter,doter });
 }
