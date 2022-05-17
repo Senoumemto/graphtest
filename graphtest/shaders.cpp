@@ -1,12 +1,14 @@
 #include "general.hpp"
 
+using evec3 = Eigen::Vector3<halff>;
+
 payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
 	using namespace half_float::literal;
 	using evec3 = Eigen::Vector3<halff>;
 
 	//法線を求める
 	auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
-	evec3 norm = (evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data())).normalized();
+	evec3 norm = ((evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()))).normalized();
 	//ヒット点を求める
 	evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
 
@@ -20,7 +22,7 @@ payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindices
 	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
 	nextgen.push_back(parentedRay({ att.r.index(), ref }));
 
-	return payloadContent(hvec3::Zero(), hvec3({ norm.x(),norm.y(),norm.z()}));
+	return payloadContent({ 0.7_h,0.5_h, 0.5_h,});
 	//return payloadContent({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
 }
 payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
@@ -28,7 +30,7 @@ payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindice
 	using namespace half_float::literal;
 
 	evec3 direction(str.r.way().data());
-	evec3 light(0.0_h, -1.0_h, 1.0_h);
+	evec3 light(0.0_h, -1.0_h, 0.0_h);
 
 	halff doter = direction.dot(-light.normalized());
 	doter = std::max(0.0_h, doter);
@@ -37,6 +39,5 @@ payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindice
 	terminates->push_head(str.r.index());
 
 	halff amb = +0.0_h;//環境光
-	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { 1.0_h,1.0_h,1.0_h });
 	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { doter + amb,doter + amb,doter + amb });
 }

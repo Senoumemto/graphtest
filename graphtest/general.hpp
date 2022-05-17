@@ -393,18 +393,20 @@ namespace toolkit {
 			broadphaser<coren>* parent;
 
 			//rで親のptlasに対してレイトレーシングを行い広域衝突情報のリストを返す
-			std::deque<gindex> Raytrace(ray& r) {
+			std::deque<std::pair<ray,gindex>> Raytrace(const ray& r_grobal) {
 				using evec3 = Eigen::Vector3<halff>;
 				using evec4 = Eigen::Vector4<halff>;
 				using namespace half_float::literal;
 
-				std::deque<gindex> ret;
+				std::deque<std::pair<ray,gindex>> ret;
 				//blasごとに行う
 				for (sindex blasid = 0; blasid < parent->ptlas->size();blasid++) {
 					const auto& blasset = parent->ptlas->at(blasid);
 					//変換をレイに適用する
-					r.way() = hvec3::Make(evec4(blasset.first * evec4(r.way().x(), r.way().y(), r.way().z(), 0.0_h)), false);
-					r.org() = hvec3::Make(evec4(blasset.first * evec4(r.org().x(), r.org().y(), r.org().z(), 1.0_h)), true);
+					ray r;
+					r.indexed(r_grobal.index());//同一のレイである
+					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0_h)), false);
+					r.org() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.org().x(), r_grobal.org().y(), r_grobal.org().z(), 1.0_h)), true);
 
 					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
 
@@ -427,7 +429,7 @@ namespace toolkit {
 								if (blasset.second->tree.at(nowi-1).isVertex)
 									nowi = nowi * 2;//かつ節なら順行　2n
 								else {
-									ret.push_back(std::make_pair(blasid,(sindex)(nowi-leafhead)));//かつは葉なら予約
+									ret.push_back(std::make_pair(r,std::make_pair(blasid,(sindex)(nowi-leafhead))));//かつは葉なら予約
 									if (nowi % 2) {
 										nowi = (nowi - 1) / 2;//右なら逆行
 										isInv = true;
@@ -467,11 +469,11 @@ namespace toolkit {
 			sptr<broadphaseResults> ret(new broadphaseResults);
 
 			//rsから複製してrを得る
-			for (ray r : rs) {
+			for (const ray& r : rs) {
 				auto r_sHits = cores.front().Raytrace(r);//ブロードフェーズを行い広域衝突情報を受け取る
 
-				for (gindex g : r_sHits)
-					ret->push_back(std::make_pair(r, g));
+				for (const auto& g : r_sHits)
+					ret->push_back(g);
 			}
 
 			return ret;

@@ -22,8 +22,8 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
 const halff IGNORE_NEARHIT = 0.01_h;
 
 const std::vector<std::pair<string, Affine3h>> model_gen = {
-	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-1.0_h,0.0_h)))),
-	std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h))))};
+	std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-5.0_h)))),
+	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-2.0_h,-5.0_h))))};
 //const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
 /*
