@@ -144,6 +144,7 @@ using rays = std::vector<ray>;
 class parentedRay :private std::pair<exindex, ray> {
 	using super = std::pair<exindex, ray>;
 public:
+	parentedRay():super(){}
 	parentedRay(const super& s) :super(s) {}
 	parentedRay(const ray& r) :super(std::numeric_limits<exindex>::max(), r) {}
 
@@ -405,7 +406,7 @@ namespace toolkit {
 					//変換をレイに適用する
 					ray r;
 					r.indexed(r_grobal.index());//同一のレイである
-					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0_h)), false);
+					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0_h)).normalized(), false);
 					r.org() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.org().x(), r_grobal.org().y(), r_grobal.org().z(), 1.0_h)), true);
 
 					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
@@ -522,17 +523,58 @@ namespace toolkit {
 		anyhit(){}
 	};
 
-	template<exindex cachesize>class materialer {
+	template<exindex cachesize,sindex brunchsize>class materialer {
+
+
+		void ApplyToRay(const hmat4& m, ray& r) {
+			using namespace half_float::literal;
+			using evec4 = Eigen::Vector4<halff>;
+			//r.indexed(r.index());インデックスは未だ割り振られてない
+			r.way() = hvec3::Make(evec4(m * evec4(r.way().x(), r.way().y(), r.way().z(), 0.0_h)).normalized(), false);
+			r.org() = hvec3::Make(evec4(m * evec4(r.org().x(), r.org().y(), r.org().z(), 1.0_h)), true);
+		}
 	public:
+		//一つのレイから作られた次世代 ヘッド付き
+		class brunch : std::array<parentedRay, brunchsize>{
+			using super = std::array<parentedRay, brunchsize>;
+		public:
+			sindex head;
+
+			brunch():super() { head = 0; }
+			brunch(const super& s) :super(s) { head = 0; }
+
+			brunch& push_head(const parentedRay& p) {
+				super::at(head++) = p;
+
+				return *this;
+			}
+			parentedRay& at(sindex i) {
+				return super::at(i);
+			}
+			const parentedRay& at(sindex i) const {
+				return super::at(i);
+			}
+
+		};
 		sptr<tlas>ptlas;
-		using shader = std::function<payloadContent(const closesthit&, parentedRays&, exindicesWithHead*, sptr<tlas>)>;
+		using shader = std::function<payloadContent(const closesthit&, brunch&, sptr<tlas>,bool&)>;
 
 		shader HitShader, MissShader;
 
-		const payloads* Shading(const closesthits& hits,parentedRays& nextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
+		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
-				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextgen, terminates, ptlas) : MissShader(r, nextgen, terminates, ptlas));
+				brunch nextbrunch;//今回生じるレイ
+				bool isTerminate = false;//
+				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextbrunch, ptlas,isTerminate) : MissShader(r, nextbrunch, ptlas,isTerminate));
+				
+				//終端か次世代が許可されなければ
+				if (isTerminate || !arrowNextgen)terminates->push_head(r.r.index());
+
+				for (int i = 0; i < nextbrunch.head; i++) {
+					ApplyToRay(ptlas->at(r.tri.blasId()).first.inverse(), nextbrunch.at(i).GetRay());
+					nextgen.push_back(nextbrunch.at(i));
+				}
 			}
 			
 			return pays_allgen;
@@ -552,11 +594,21 @@ namespace toolkit {
 				ee.at(i) += er.at(i);
 		}
 		void ClampHvec3(hvec3& ee,const halff& min=halff(0.0), const halff& max=halff(1.0)) {
-			for (int i = 0; i < 3; i++)
+			using evec3 = Eigen::Vector3<halff>;
+			using namespace half_float::literal;
+
+			for (int i = 0; i < 3; i++) {
+				if (ee.at(i) > 1.0_h) {
+					std::cout << ee.at(0).operator float() <<"\t"<< ee.at(1).operator float() <<"\t"<< ee.at(2).operator float() << std::endl;
+					int i = 0;
+				}
 				ee.at(i) = std::clamp(ee.at(i), min, max);
+			}
 		}
 	public:
 		sptr<bitmap<res>> Develop(payloads* pays_allgen,exindicesWithHead* terminates) {
+
+			
 
 			sptr<bitmap<res>> ret(new bitmap<res>());
 			int hei = 0;
@@ -569,11 +621,13 @@ namespace toolkit {
 					MulHvec(color, tnow.GetContent().scale());
 					AddHvec(color, tnow.GetContent().translate());
 
+					//std::cout << tnow.GetContent().translate().at(0).operator float() << "\t" << tnow.GetContent().translate().at(1).operator float() << "\t" << tnow.GetContent().translate().at(2).operator float() << std::endl;
+
 					//ここが終端なら
 					if (tnow.parent == std::numeric_limits<exindex>::max()) {
 						ClampHvec3(color);//色領域へ丸める
 						ret->at(tnowi) = color;
-						
+
 						break;
 					}
 					tnowi = tnow.parent;

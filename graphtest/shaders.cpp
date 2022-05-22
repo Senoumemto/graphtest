@@ -2,7 +2,12 @@
 
 using evec3 = Eigen::Vector3<halff>;
 
-payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
+const extern sindex RAYNUM_LIMIT_BRUNCH;
+const extern exindex RAYNUM_LIMIT_ALL;
+
+using brunch = toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch;
+
+payloadContent HitShader(const closesthit& att, brunch& nextgenlocal, sptr<tlas> ptlas,bool& isTerminate) {
 	using namespace half_float::literal;
 	using evec3 = Eigen::Vector3<halff>;
 
@@ -20,24 +25,34 @@ payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindices
 	ray ref;
 	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
-	nextgen.push_back(parentedRay({ att.r.index(), ref }));
+	nextgenlocal.push_head(parentedRay({ att.r.index(), ref }));
 
-	return payloadContent({ 0.7_h,0.5_h, 0.5_h,});
+	//std::cout << norm.norm().operator float() << std::endl;
+	if (norm.z() <= 0.0001_h)
+		int a = 0;
+
+	//”½Ë‚·‚é‚Ì‚Återm‚Å‚È‚¢
+	isTerminate = false;
+	//return payloadContent({ 0.5_h,0.5_h,0.5_h });
+	//return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { std::abs<halff>(refrectway.x()), std::abs<halff>(refrectway.y()), std::abs<halff>(refrectway.z()) });
+	return payloadContent({std::abs<halff>(norm.x()),std::abs<halff>(norm.y()),std::abs<halff>(norm.z())});
 	//return payloadContent({ std::abs<halff>(refrectway.x()),std::abs<halff>(refrectway.y()),std::abs<halff>(refrectway.z()) });
 }
-payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas) {
+payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, sptr<tlas> ptlas,bool& isTerminate) {
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
 
 	evec3 direction(str.r.way().data());
-	evec3 light(0.0_h, -1.0_h, 0.0_h);
+	evec3 light(1.0_h, -1.0_h, -0.2_h);
 
-	halff doter = direction.dot(-light.normalized());
+	halff doter = direction.normalized().dot(-light.normalized());
 	doter = std::max(0.0_h, doter);
-	doter = pow(doter, 2.0_h);
+	doter = pow(doter, 1.0_h);
 
-	terminates->push_head(str.r.index());
+	//–³ŒÀ‰“‚É”ò‚ñ‚Ås‚Á‚½
+	isTerminate = true;
 
-	halff amb = +0.0_h;//ŠÂ‹«Œõ
+	doter = 0;
+	halff amb = +1.0_h;//ŠÂ‹«Œõ
 	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { doter + amb,doter + amb,doter + amb });
 }

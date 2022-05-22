@@ -10,20 +10,24 @@ using namespace Eigen;
 using namespace half_float::literal;
 using Affine3h = Eigen::Transform<halff, 3, 2>;
 
-constexpr size_t MAX_GENERATIONS = 10;
+constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 512;
+constexpr size_t CAMERA_RESOLUTION = 2048;
+const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//àÍñ{ÇÃÉåÉCÇ©ÇÁê∂Ç∂ÇÈï™äÚÇÃç≈ëÂíl
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
-constexpr exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS;
-constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION;
+const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;
+constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
 
 
 const halff IGNORE_NEARHIT = 0.01_h;
 
-const std::vector<std::pair<string, Affine3h>> model_gen = {
-	std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-5.0_h)))),
-	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-2.0_h,-5.0_h))))};
+const std::vector<std::pair<string, hmat4>> model_gen = {
+	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
+	std::make_pair("../uv.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-5.0_h))).matrix()),
+	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
+	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-5.0_h,-5.0_h))).matrix())
+};
 //const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
 /*
@@ -39,12 +43,12 @@ struct {
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
 	toolkit::anyhit<RAYNUM_LIMIT_GENERATION> anyhit;
-	toolkit::materialer<RAYNUM_LIMIT_ALL> materialer;
+	toolkit::materialer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 }machines;
 
-payloadContent HitShader(const closesthit& att, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
-payloadContent MissShader(const closesthit& str, parentedRays& nextgen, exindicesWithHead* terminates, sptr<tlas> ptlas);
+//payloadContent HitShader(const closesthit& att, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
+//payloadContent MissShader(const closesthit& str, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
 #include "shaders.cpp"
 
 
@@ -82,7 +86,7 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	//tlasÇçÏêª
 	sptr<tlas> scene(new tlas);
 	for (int i=0;i<objs.size();i++)
-		scene->push_back(make_pair(model_gen.at(i).second.matrix().inverse(), objs.at(i)));//blasÇ∆ÇªÇÃïœä∑Çìoò^
+		scene->push_back(make_pair(model_gen.at(i).second.inverse(), objs.at(i)));//blasÇ∆ÇªÇÃïœä∑Çìoò^
 
 
 	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
@@ -122,7 +126,7 @@ int main() {
 
 		cout << "shading began" << endl;
 		parentedRays nextgen;
-		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize);//ÉåÉCÇÃï\ñ Ç≈ÇÃêUÇÈïëÇ¢ÇåvéZ next gen raysÇê∂ê¨
+		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, gen+1 < MAX_GENERATIONS, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize);//ÉåÉCÇÃï\ñ Ç≈ÇÃêUÇÈïëÇ¢ÇåvéZ next gen raysÇê∂ê¨
 		machines.rooter.RegisterRays(nextgen, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
 
 		cout << "\t" << gen << "th generation report\n"
