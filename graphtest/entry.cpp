@@ -13,20 +13,22 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 2048;
+constexpr size_t CAMERA_RESOLUTION = 512;
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//一本のレイから生じる分岐の最大値
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
+
 const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
 
 
-const halff IGNORE_NEARHIT = 0.01_h;
+const halff IGNORE_NEARHIT = std::numeric_limits<halff>::epsilon()*5.0_h;
 
-const std::vector<std::pair<string, hmat4>> model_gen = {
+#include "shaders.cpp"
+const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
 	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
-	std::make_pair("../uv.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-5.0_h))).matrix()),
+	std::make_tuple("../cube.dae",hmat4::Identity(),HitPos),
 	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
-	std::make_pair("../ground.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-5.0_h,-5.0_h))).matrix())
+	std::make_tuple("../ground.dae",hmat4::Identity(),HitPos)
 };
 //const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
@@ -49,7 +51,6 @@ struct {
 
 //payloadContent HitShader(const closesthit& att, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
 //payloadContent MissShader(const closesthit& str, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
-#include "shaders.cpp"
 
 
 //手順0(pre-phase)  アウターで行われるデータ構造の準備
@@ -65,7 +66,7 @@ prephaseRez PrePhase() {
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
 	for (const auto& p : model_gen) {
 		dmod tempmod;
-		ModLoader(p.first, tempmod);
+		ModLoader(std::get<0>(p), tempmod);
 		sptr<blas> obj(new blas(tempmod));
 		rez.objs.push_back(obj);
 	}
@@ -85,20 +86,24 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 
 	//tlasを作製
 	sptr<tlas> scene(new tlas);
-	for (int i=0;i<objs.size();i++)
-		scene->push_back(make_pair(model_gen.at(i).second.inverse(), objs.at(i)));//blasとその変換を登録
+	for (int i = 0; i < objs.size(); i++) {
+		scene->push_back(make_pair(std::get<1>(model_gen.at(i)).inverse(), objs.at(i)));//blasとその変換を登録
+		machines.materialer.mats.push_back(std::get<2>(model_gen.at(i)));
+	}
 
 
-	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
+	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(), machines.memory.GetAllGenPayloads());
 
 	//トレーサーにtlasをそれにインストール
 	machines.broadphaser.ptlas = scene;
 	machines.narrowphaser.ptlas = scene;
 	machines.materialer.ptlas = scene;
 
-	//シェーダーをインストール
-	machines.materialer.HitShader = HitShader;
-	machines.materialer.MissShader = MissShader;
+	////シェーダーをインストール
+	//machines.materialer.mats.push_back(HitMirror);
+	//machines.materialer.mats.push_back(HitMirror);
+
+	machines.materialer.mats.miss = MissShader;
 }
 
 

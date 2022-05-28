@@ -186,7 +186,7 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	//cout << endl;
 
 	// 微小な定数([Möller97] での値)
-	constexpr float kEpsilon = 1e-6f;
+	constexpr halff kEpsilon = std::numeric_limits<halff>::epsilon();
 
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;

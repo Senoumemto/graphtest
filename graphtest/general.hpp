@@ -11,6 +11,7 @@
 #include <deque>
 #include <optional>
 #include <functional>
+#include <tuple>
 
 #include<Eigen/Core>
 #include<Eigen/Dense>
@@ -246,9 +247,8 @@ template<typename paytype>using payed_ray = std::pair<ray, paytype>;
 template<typename paytype>using payed_rays = std::vector<payed_ray<paytype>>;
 
 //bitmapを表す
-template<size_t res>struct bitmap :public std::array<hvec3, res* res>{
+template<size_t res>struct bitmap :public std::array<hvec3, res* res>{};
 
-};
 
 //グラボの機能を実装
 namespace toolkit {
@@ -558,15 +558,19 @@ namespace toolkit {
 		};
 		sptr<tlas>ptlas;
 		using shader = std::function<payloadContent(const closesthit&, brunch&, sptr<tlas>,bool&)>;
+		//シェーダーリスト blas-idを用いる
+		struct shaderlist :public std::vector<shader> {
+			shader miss;
+		};
 
-		shader HitShader, MissShader;
+		shaderlist mats;//shader HitShader, MissShader;
 
 		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
 				brunch nextbrunch;//今回生じるレイ
 				bool isTerminate = false;//
-				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? HitShader(r, nextbrunch, ptlas,isTerminate) : MissShader(r, nextbrunch, ptlas,isTerminate));
+				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? mats.at(r.tri.blasId()).operator()(r, nextbrunch, ptlas,isTerminate) : mats.miss(r, nextbrunch, ptlas,isTerminate));
 				
 				//終端か次世代が許可されなければ
 				if (isTerminate || !arrowNextgen)terminates->push_head(r.r.index());
@@ -599,7 +603,7 @@ namespace toolkit {
 
 			for (int i = 0; i < 3; i++) {
 				if (ee.at(i) > 1.0_h) {
-					std::cout << ee.at(0).operator float() <<"\t"<< ee.at(1).operator float() <<"\t"<< ee.at(2).operator float() << std::endl;
+					//std::cout << ee.at(0).operator float() <<"\t"<< ee.at(1).operator float() <<"\t"<< ee.at(2).operator float() << std::endl;
 					int i = 0;
 				}
 				ee.at(i) = std::clamp(ee.at(i), min, max);
