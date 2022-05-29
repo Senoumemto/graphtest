@@ -617,15 +617,20 @@ namespace toolkit {
 			sptr<bitmap<res>> ret(new bitmap<res>());
 			int hei = 0;
 			for (exindex tnowi : *terminates) {
+				bool debugt = true;
 				payload tnow = pays_allgen->at(tnowi);//現在のノード　終端から始める
 				hvec3 color = hvec3::Zero();
 
 				while (1) {
+
 					//処理を行う
 					MulHvec(color, tnow.GetContent().scale());
 					AddHvec(color, tnow.GetContent().translate());
 
-					//std::cout << tnow.GetContent().translate().at(0).operator float() << "\t" << tnow.GetContent().translate().at(1).operator float() << "\t" << tnow.GetContent().translate().at(2).operator float() << std::endl;
+					/*std::cout <<debugt<<"\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
+					debugt = false;
+					if (tnowi == 259 + (511 - 140) * 512)
+						exit(0);*/
 
 					//ここが終端なら
 					if (tnow.parent == std::numeric_limits<exindex>::max()) {

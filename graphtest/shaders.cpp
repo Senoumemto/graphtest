@@ -19,8 +19,8 @@ payloadContent HitMirror(const closesthit& att, brunch& nextgenlocal, sptr<tlas>
 
 	//鏡面反射
 	auto a = (-evec3(att.r.way().data())).dot(norm);
-	evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
-
+	//evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
+	evec3 refrectway = (2.0_h * ((-evec3(att.r.way().data())).dot(norm)) * norm + evec3(att.r.way().data())).normalized();
 
 	ray ref;
 	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
@@ -50,8 +50,8 @@ payloadContent HitLight(const closesthit& att, brunch& nextgenlocal, sptr<tlas> 
 
 	//鏡面反射
 	auto a = (-evec3(att.r.way().data())).dot(norm);
-	evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
-
+	//evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
+	evec3 refrectway = (2.0_h * ((-evec3(att.r.way().data())).dot(norm)) * norm + evec3(att.r.way().data())).normalized();
 
 	ray ref;
 	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
@@ -66,8 +66,8 @@ payloadContent HitLight(const closesthit& att, brunch& nextgenlocal, sptr<tlas> 
 	isTerminate = false;
 	//return payloadContent({ 0.5_h,0.5_h,0.5_h });
 	halff xxx = norm.y() < -0.001 ? 1.0_h : 0.0_h;
-	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { 1.0_h,xxx,xxx });
-	//return payloadContent({1.0_h,1.0_h,1.0_h}, { std::abs<halff>(norm.x()),std::abs<halff>(norm.y()),std::abs<halff>(norm.z()) });
+	//return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { 1.0_h,xxx,xxx });
+	return payloadContent({1.0_h,1.0_h,1.0_h}, { std::abs<halff>(norm.x()),std::abs<halff>(norm.y()),std::abs<halff>(norm.z()) });
 }
 
 payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, sptr<tlas> ptlas,bool& isTerminate) {
@@ -75,7 +75,7 @@ payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, sptr<tlas
 	using namespace half_float::literal;
 
 	evec3 direction(str.r.way().data());
-	evec3 light(1.0_h, -1.0_h, -0.2_h);
+	evec3 light(0.0_h, -1.0_h, 0.0_h);
 
 	halff doter = direction.normalized().dot(-light.normalized());
 	doter = std::max(0.0_h, doter);
@@ -84,8 +84,8 @@ payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, sptr<tlas
 	//無限遠に飛んで行った
 	isTerminate = true;
 
-	doter = 0;
-	halff amb = +0.1_h;//環境光
+	doter = 0.0_h;
+	halff amb = +0.00_h;//環境光
 	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { doter + amb,doter + amb,doter + amb });
 }
 
@@ -111,5 +111,31 @@ payloadContent HitPos(const closesthit& att, brunch& nextgenlocal, sptr<tlas> pt
 
 	
 	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { 0.0_h,hitpoint.y() / 20.0_h ,-hitpoint.z() / 20.0_h });
+	//return payloadContent({1.0_h,1.0_h,1.0_h}, { std::abs<halff>(norm.x()),std::abs<halff>(norm.y()),std::abs<halff>(norm.z()) });
+}
+
+payloadContent HitWay(const closesthit& att, brunch& nextgenlocal, sptr<tlas> ptlas, bool& isTerminate) {
+	using namespace half_float::literal;
+	using evec3 = Eigen::Vector3<halff>;
+
+	//法線を求める
+	auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
+	evec3 norm = ((evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()))).normalized();
+	//ヒット点を求める
+	evec3 hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
+
+	//鏡面反射
+	auto a = (-evec3(att.r.way().data())).dot(norm);
+	//evec3 refrectway = (norm * a * 2.0_h - evec3(att.r.way().data())).normalized();// evec3(att.r.way().data()) + norm * (a * -2.0_h);
+	evec3 refrectway = (2.0_h * ((-evec3(att.r.way().data())).dot(norm)) * norm + evec3(att.r.way().data())).normalized();
+
+
+	ray ref;
+	ref.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
+	ref.org() = hvec3({ hitpoint.x(),hitpoint.y(),hitpoint.z() });
+
+	isTerminate = true;
+	//return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { 1.0_h,1.0_h,1.0_h });
+	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { ref.way().x() ,ref.way().y() ,ref.way().z() });
 	//return payloadContent({1.0_h,1.0_h,1.0_h}, { std::abs<halff>(norm.x()),std::abs<halff>(norm.y()),std::abs<halff>(norm.z()) });
 }

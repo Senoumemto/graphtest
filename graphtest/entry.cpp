@@ -21,14 +21,14 @@ const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATION
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
 
 
-const halff IGNORE_NEARHIT = std::numeric_limits<halff>::epsilon()*5.0_h;
+const halff IGNORE_NEARHIT = 0.01_h;// std::numeric_limits<halff>::epsilon() * 5.0_h;
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
 	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
-	std::make_tuple("../cube.dae",hmat4::Identity(),HitPos),
+	std::make_tuple("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix(),HitLight),
 	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
-	std::make_tuple("../ground.dae",hmat4::Identity(),HitPos)
+	std::make_tuple("../ground.dae",hmat4::Identity(),HitMirror)
 };
 //const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 
