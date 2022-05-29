@@ -167,7 +167,6 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 	return ret;
 }
 
-
 optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
 	//std::cout << "ray" << std::endl;
 	//for (const auto& i : ray.way())
@@ -184,9 +183,12 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	//	cout << endl;
 	//}
 	//cout << endl;
-
-	// 微小な定数([Möller97] での値)
+	using namespace half_float::literal;
+	// 微小な定数
 	constexpr halff kEpsilon = std::numeric_limits<halff>::epsilon();
+	const halff margined1 = 1.0_h + kEpsilon;//1.0より大きい最小の数
+	const halff doublemargined1 = margined1 +  kEpsilon;//1.0より大きい最小の数より大きい最小の数
+	constexpr halff minusEps = -std::numeric_limits<halff>::epsilon();
 
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
@@ -204,15 +206,15 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	evec3 r = eorg - evec3(tri.at(0).data());
 
 	halff u = alpha.dot(r) * invdet;
-	if (u < 0.0_h || u>1.0_h)return nullopt;
+	if (u < minusEps || u>margined1)return nullopt;
 
 	evec3 beta = r.cross(e1);
 
 	halff v = eway.dot(beta) * invdet;
-	if (v < 0.0_h || u + v>1.0_h)return nullopt;
+	if (v < minusEps || u + v>doublemargined1)return nullopt;
 
 	halff t = e2.dot(beta) * invdet;
-	if (t < 0.0_h)return nullopt;
+	if (t < minusEps)return nullopt;
 
 	return hvec3({ u, v, t });
 }
