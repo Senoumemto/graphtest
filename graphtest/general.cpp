@@ -1,6 +1,7 @@
 ﻿#include "general.hpp"
 
 using namespace std;
+using evec3 = Eigen::Vector3<halff>;
 
 htri ToHaabb(const tri<double>& in) {
 	htri ret;
@@ -219,15 +220,30 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	return hvec3({ u, v, t });
 }
 
-sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit) {
+//表面からの入射角のcos
+halff incidenceAngleCos(const ray& ray, const htri& tri) {
+	auto norm = ((evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()))).normalized();
+	auto direction = evec3(ray.way().data()).normalized();
+
+	return norm.dot(direction);
+}
+
+sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit,const halff param_ignoreParallelHit) {
 	sptr<narrowphaseResults> rez(new narrowphaseResults);
+	using namespace half_float::literal;
 
 	for (const auto& bp : bprez) {
 		auto uvt = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
+		auto inciCos = incidenceAngleCos(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
 
+		//ヒットしたら
 		if (uvt.has_value()) {
-			if (uvt.value().at(2) > param_ignoreNearHit)//無視値よりおおきければ
-				rez->push_back(narrowphaseResultElement(bp, uvt.value()));
+			if (uvt.value().at(2) > param_ignoreNearHit) {//無視値より大きい
+				if (std::abs(inciCos) > param_ignoreParallelHit)
+					rez->push_back(narrowphaseResultElement(bp, uvt.value()));
+				else
+					cout << "ignored with parallel" << endl;
+			}
 		}
 	}
 

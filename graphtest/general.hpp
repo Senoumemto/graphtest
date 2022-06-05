@@ -336,6 +336,9 @@ namespace toolkit {
 
 	template<size_t coren>class broadphaser {
 	protected:
+
+		const halff param_aabbMargin;
+
 		bool vsAABB(const ray& r, const aabb& box, halff tmin = halff(0.0), halff tmax = std::numeric_limits<halff>::infinity()) {
 
 			//std::cout << "AABB" << std::endl;
@@ -357,15 +360,15 @@ namespace toolkit {
 
 			for (int a = 0; a < 3; a++) {
 				halff invD = halff(1.0) / r.way()[a];
-				halff t0 = (box.min()[a] - r.org()[a]) * invD;
-				halff t1 = (box.max()[a] - r.org()[a]) * invD;
+				halff t0 = (box.min()[a] - r.org()[a]) * invD;//近面
+				halff t1 = (box.max()[a] - r.org()[a]) * invD;//遠面
 				if (invD < 0.0f)
 					std::swap(t0, t1);
-				tmin = t0 > tmin ? t0 : tmin;
-				tmax = t1 < tmax ? t1 : tmax;
+				tmin = t0 > tmin ? t0 : tmin;//近面のうちより遠いもの
+				tmax = t1 < tmax ? t1 : tmax;//遠面のうちより近いもの
 				//std::cout << tmin << "\t" << tmax << std::endl;
 
-				if (tmax < tmin)
+				if (tmax < tmin)//交差しているならだめ
 					return false;
 			}
 			return true;
@@ -460,7 +463,7 @@ namespace toolkit {
 
 		std::array<core,coren> cores;
 
-		broadphaser():cores() {
+		broadphaser(const halff& aabbMargin):cores(),param_aabbMargin(aabbMargin) {
 			for (core& i : cores)
 				i.parent = this;
 		}
@@ -488,7 +491,7 @@ namespace toolkit {
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
 
-		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit);
+		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit, const halff param_ignoreParallelHit);
 	};
 
 

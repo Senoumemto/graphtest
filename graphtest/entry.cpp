@@ -22,6 +22,7 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
 
 
 const halff IGNORE_NEARHIT = 0.01_h;// std::numeric_limits<halff>::epsilon() * 5.0_h;
+const halff IGNORE_PARALLELHIT = 0.1_h;
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
@@ -38,7 +39,7 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 */
 
 //装置たち
-struct {
+struct _machines{
 	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES> memory;
 
 	toolkit::rooter<RAYNUM_LIMIT_ALL,payload> rooter;
@@ -47,6 +48,8 @@ struct {
 	toolkit::anyhit<RAYNUM_LIMIT_GENERATION> anyhit;
 	toolkit::materialer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
+
+	_machines():broadphaser(0.0_h){}
 }machines;
 
 //payloadContent HitShader(const closesthit& att, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
@@ -124,7 +127,7 @@ int main() {
 		auto bpRez = machines.broadphaser.Broadphase(generation);//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
 
 		cout << "narrowphase began" << endl;
-		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT);//ブロードフェーズ結果からナローフェーズを行う
+		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT);//ブロードフェーズ結果からナローフェーズを行う
 
 		cout << "anyhit phase began" << endl;
 		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetNowGenClosests());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
