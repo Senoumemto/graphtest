@@ -230,15 +230,28 @@ public:
 	const hvec3& scale() const{ return this->first; }//F‹óŠÔ‚ÌŠgk(”½ŽË)
 	const hvec3& translate() const{ return this->second; }//F‚Ì•Ài(”­Œõ)
 
-	payloadContent(const hvec3& scale, const hvec3& trans) { 
-		this->scale() = scale;
-		this->translate() = trans;
+	payloadContent(const hvec3& scale, const hvec3& trans,bool allowNegativeValue) { 
+		if (allowNegativeValue) {
+			this->scale() = scale;
+			this->translate() = trans;
+		}
+		else {
+			hvec3 junk;
+			for (size_t i = 0; i < 3; i++)
+				junk.at(i) = std::abs<halff>(scale.at(i));
+			this->scale() = junk;
+
+			for (size_t i = 0; i < 3; i++)
+				junk.at(i) = std::abs<halff>(trans.at(i));
+			this->translate() = junk;
+		}
+
 	}
-	payloadContent(const std::array<halff,3>& scale, const std::array<halff, 3>& trans):payloadContent(hvec3(scale), hvec3(trans)) {}
-	payloadContent(const hvec3& scale):payloadContent(scale, hvec3::Zero()) {}
-	payloadContent(const std::array<halff,3>& scale):payloadContent(hvec3(scale)) {}
+	payloadContent(const std::array<halff,3>& scale, const std::array<halff, 3>& trans, bool allowNegativeValue=false):payloadContent(hvec3(scale), hvec3(trans), allowNegativeValue) {}
+	payloadContent(const hvec3& scale, bool allowNegativeValue = false):payloadContent(scale, hvec3::Zero(), allowNegativeValue) {}
+	payloadContent(const std::array<halff,3>& scale, bool allowNegativeValue = false):payloadContent(hvec3(scale), allowNegativeValue) {}
 	payloadContent(const super&s):super(s){}
-	payloadContent(const payloadContent&c):payloadContent(c.scale(),c.translate()){}
+	payloadContent(const payloadContent&c, bool allowNegativeValue = false):payloadContent(c.scale(),c.translate(), allowNegativeValue){}
 	payloadContent(){}
 };
 using payload = payloadbase<payloadContent>;
