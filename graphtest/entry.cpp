@@ -10,7 +10,7 @@ using namespace Eigen;
 using namespace half_float::literal;
 using Affine3h = Eigen::Transform<halff, 3, 2>;
 
-constexpr size_t MAX_GENERATIONS = 20;
+constexpr size_t MAX_GENERATIONS = 50;
 
 constexpr size_t CORE_NUM = 1;
 constexpr size_t CAMERA_RESOLUTION = 512;
@@ -21,15 +21,15 @@ const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATION
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
 
 
-const halff IGNORE_NEARHIT = 0.01_h;// std::numeric_limits<halff>::epsilon() * 5.0_h;
-const halff IGNORE_PARALLELHIT = 0.1_h;
+const halff IGNORE_NEARHIT = 0.01_h;//ÉåÉCÇÃìñÇΩÇËîªíËÇÕt=Ç±ÇÍà»ç~Ç≈î≠ê∂Ç∑ÇÈ
+const halff IGNORE_PARALLELHIT = 0.0_h;//norm dot directionÇ™Ç±ÇÍà»â∫
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
 	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
-	std::make_tuple("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix(),HitLight),
+	std::make_tuple("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix(),HitColor),
 	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
-	std::make_tuple("../ground.dae",hmat4::Identity(),HitMirror)
+	std::make_tuple("../ground.dae",hmat4::Identity(),HitLight)
 };
 //const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
 

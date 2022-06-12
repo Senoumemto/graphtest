@@ -188,8 +188,8 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	// 微小な定数
 	constexpr halff kEpsilon = std::numeric_limits<halff>::epsilon();
 	const halff margined1 = 1.0_h + kEpsilon;//1.0より大きい最小の数
-	const halff doublemargined1 = margined1 +  kEpsilon;//1.0より大きい最小の数より大きい最小の数
-	constexpr halff minusEps = -std::numeric_limits<halff>::epsilon();
+	const halff doublemargined1 = margined1 +kEpsilon;//1.0より大きい最小の数より大きい最小の数
+	const halff minusEps = -std::numeric_limits<halff>::epsilon();
 
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
@@ -220,8 +220,8 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	return hvec3({ u, v, t });
 }
 
-//表面からの入射角のcos
-halff incidenceAngleCos(const ray& ray, const htri& tri) {
+//法線と入射方向の内積
+halff incidenceNormDot(const ray& ray, const htri& tri) {
 	auto norm = ((evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()))).normalized();
 	auto direction = evec3(ray.way().data()).normalized();
 
@@ -234,15 +234,15 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 
 	for (const auto& bp : bprez) {
 		auto uvt = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
-		auto inciCos = incidenceAngleCos(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
+		auto inciDot = incidenceNormDot(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));//法線とレイ方向の内積
 
 		//ヒットしたら
 		if (uvt.has_value()) {
 			if (uvt.value().at(2) > param_ignoreNearHit) {//無視値より大きい
-				if (std::abs(inciCos) > param_ignoreParallelHit)
+				if (inciDot < param_ignoreParallelHit)//コサイン
 					rez->push_back(narrowphaseResultElement(bp, uvt.value()));
-				else
-					cout << "ignored with parallel" << endl;
+				else//かくどがちいさい=並行なら
+					;// cout << "ignored with parallel" << endl;
 			}
 		}
 	}

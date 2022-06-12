@@ -12,6 +12,7 @@
 #include <optional>
 #include <functional>
 #include <tuple>
+#include <numbers>
 
 #include<Eigen/Core>
 #include<Eigen/Dense>
@@ -630,10 +631,14 @@ namespace toolkit {
 					MulHvec(color, tnow.GetContent().scale());
 					AddHvec(color, tnow.GetContent().translate());
 
-					/*std::cout <<debugt<<"\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
-					debugt = false;
-					if (tnowi == 259 + (511 - 140) * 512)
-						exit(0);*/
+					//std::cout <<debugt<<"\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
+					//debugt = false;
+					//int xx = 61, yy = 50;
+					//int resa = 128;
+					//if (tnowi == xx + (resa - 1 - yy) * resa) {
+					//	//std::cout << debugt << "\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
+					//	int aa = 0;
+					//}
 
 					//‚±‚±‚ªI’[‚È‚ç
 					if (tnow.parent == std::numeric_limits<exindex>::max()) {
