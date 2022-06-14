@@ -10,10 +10,10 @@ using namespace Eigen;
 using namespace half_float::literal;
 using Affine3h = Eigen::Transform<halff, 3, 2>;
 
-constexpr size_t MAX_GENERATIONS = 50;
+constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 512;
+constexpr size_t CAMERA_RESOLUTION = 256;
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//一本のレイから生じる分岐の最大値
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 
@@ -102,10 +102,6 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	machines.narrowphaser.ptlas = scene;
 	machines.materialer.ptlas = scene;
 
-	////シェーダーをインストール
-	//machines.materialer.mats.push_back(HitMirror);
-	//machines.materialer.mats.push_back(HitMirror);
-
 	machines.materialer.mats.miss = MissShader;
 }
 
@@ -113,7 +109,6 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 int main() {
 
 	auto preRez = PrePhase();//アウターがデータを用意する(blasとcam)
-
 
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
 
