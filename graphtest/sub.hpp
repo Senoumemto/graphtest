@@ -37,3 +37,5 @@ struct attribRez {
 	ray refrect;
 };
 attribRez Attrib(const closesthit& att, const sptr<tlas>& ptlas);
+
+hmat4 MakeScale(const halff& s);

@@ -186,10 +186,10 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	//cout << endl;
 	using namespace half_float::literal;
 	// 微小な定数
-	constexpr halff kEpsilon = std::numeric_limits<halff>::epsilon();
+	const halff kEpsilon = std::numeric_limits<halff>::epsilon()*20.0_h;
 	const halff margined1 = 1.0_h + kEpsilon;//1.0より大きい最小の数
 	const halff doublemargined1 = margined1 +kEpsilon;//1.0より大きい最小の数より大きい最小の数
-	const halff minusEps = -std::numeric_limits<halff>::epsilon();
+	const halff minusEps = -kEpsilon;
 
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;

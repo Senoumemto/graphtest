@@ -44,3 +44,12 @@ void ModLoader(const std::string& path, dmod& ret) {
 
 }
 
+hmat4 MakeScale(const halff& s) {
+	hmat4 ret;
+	ret << s, 0.0_h, 0.0_h, 0.0_h,
+		0.0_h, s, 0.0_h, 0.0_h,
+		0.0_h, 0.0_h, s, 0.0_h,
+		0.0_h, 0.0_h, 0.0_h, 1.0_h;
+
+	return ret;
+}

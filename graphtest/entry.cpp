@@ -13,7 +13,7 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 256;
+constexpr size_t CAMERA_RESOLUTION = 2048;
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//一本のレイから生じる分岐の最大値
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 
@@ -27,7 +27,7 @@ const halff IGNORE_PARALLELHIT = 0.0_h;//norm dot directionがこれ以下
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
 	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
-	std::make_tuple("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix(),HitColor),
+	std::make_tuple("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix()*MakeScale(1.0_h),HitColor),
 	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
 	std::make_tuple("../ground.dae",hmat4::Identity(),HitLight)
 };
@@ -107,7 +107,6 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 
 
 int main() {
-
 	auto preRez = PrePhase();//アウターがデータを用意する(blasとcam)
 
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
