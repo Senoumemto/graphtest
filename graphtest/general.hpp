@@ -501,7 +501,8 @@ namespace toolkit {
 
 	class narrowphaser {
 	protected:
-		std::optional<hvec3> vsTriangle(const ray& r, const htri& tri);
+		using vsTriResult = std::pair<hvec3, bool>;//uvt,intoExtend
+		std::optional<vsTriResult> vsTriangle(const ray& r, const htri& tri);
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
 

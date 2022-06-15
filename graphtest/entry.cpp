@@ -13,7 +13,7 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 50;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 512;
+constexpr size_t CAMERA_RESOLUTION = 1024;
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//àÍñ{ÇÃÉåÉCÇ©ÇÁê∂Ç∂ÇÈï™äÚÇÃç≈ëÂíl
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
 

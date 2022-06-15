@@ -168,7 +168,7 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 	return ret;
 }
 
-optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
+optional<toolkit::narrowphaser::vsTriResult> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
 	//std::cout << "ray" << std::endl;
 	//for (const auto& i : ray.way())
 	//	std::cout << i << "\t";
@@ -186,13 +186,16 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	//cout << endl;
 	using namespace half_float::literal;
 	// 微小な定数
-	constexpr halff kEpsilon = std::numeric_limits<halff>::epsilon();
-	const halff margined1 = 1.0_h + kEpsilon;//1.0より大きい最小の数
-	const halff doublemargined1 = margined1 +kEpsilon;//1.0より大きい最小の数より大きい最小の数
-	const halff minusEps = -std::numeric_limits<halff>::epsilon();
+	const halff kEpsilon = std::numeric_limits<halff>::epsilon();
+	const halff extendMargine = kEpsilon * 100.0_h;//拡張領域のサイズ
+	const halff margined1 = 1.0_h + extendMargine;//1.0より大きい最小の数
+	const halff doublemargined1 = margined1 + extendMargine;//1.0より大きい最小の数より大きい最小の数
+	const halff minusEps = -extendMargine;
 
 	using evec3 = Eigen::Vector3<halff>;
 	using namespace half_float::literal;
+
+	bool intoExtended = false;//ポリゴンにではなく拡張された領域に侵入した　プライオリティーが悪化
 	//演算系に
 	evec3 eway(ray.way().data()), eorg(ray.org().data());
 
@@ -201,23 +204,26 @@ optional<hvec3> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tr
 	evec3 alpha = eway.cross(e2);
 	halff det = e1.dot(alpha);
 
-	if (std::abs(det) < kEpsilon)return nullopt;
+	if (std::abs(det) < kEpsilon)return nullopt;//並行すぎると無視
 
 	halff invdet = halff(1) / det;
 	evec3 r = eorg - evec3(tri.at(0).data());
 
 	halff u = alpha.dot(r) * invdet;
-	if (u < minusEps || u>margined1)return nullopt;
+	if (u < minusEps || u>margined1)return nullopt;//uがエクステンドを含めた領域になければ
+	intoExtended |= u < 0.0_h || u > 1.0_h;//厳密な範囲から外れているか
 
 	evec3 beta = r.cross(e1);
 
 	halff v = eway.dot(beta) * invdet;
-	if (v < minusEps || u + v>doublemargined1)return nullopt;
+	if (v < minusEps || u + v>doublemargined1)return nullopt;//vがエクステンドを含めた領域になければ
+	intoExtended |= v < 0.0_h || (u + v > 1.0_h);//厳密な範囲から外れているか
 
 	halff t = e2.dot(beta) * invdet;
-	if (t < minusEps)return nullopt;
+	if (t < minusEps)return nullopt;//tがエクステンドを含めた領域になければ
+	intoExtended |= t < 0.0_h;
 
-	return hvec3({ u, v, t });
+	return std::make_pair(hvec3({ u, v, t }),intoExtended);
 }
 
 //法線と入射方向の内積
@@ -233,14 +239,16 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 	using namespace half_float::literal;
 
 	for (const auto& bp : bprez) {
-		auto uvt = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
+		auto vsRez = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
 		auto inciDot = incidenceNormDot(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));//法線とレイ方向の内積
 
 		//ヒットしたら
-		if (uvt.has_value()) {
-			if (uvt.value().at(2) > param_ignoreNearHit) {//無視値より大きい
+		if (vsRez.has_value()) {
+			auto& uvt = vsRez.value().first;
+			auto& intoExtend = vsRez.value().second;
+			if (uvt.at(2) > param_ignoreNearHit) {//無視値より大きい
 				if (inciDot < param_ignoreParallelHit)//コサイン
-					rez->push_back(narrowphaseResultElement(bp, uvt.value()));
+					rez->push_back(narrowphaseResultElement(bp, uvt));
 				else//かくどがちいさい=並行なら
 					;// cout << "ignored with parallel" << endl;
 			}
