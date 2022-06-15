@@ -188,13 +188,27 @@ public:
 using broadphaseResultElement = std::pair<ray, gindex>;
 using broadphaseResults = std::deque<broadphaseResultElement>;
 
+//uvtとintoExtend,vsTriangleの返り値
+class vsTriangleResult :private std::pair<hvec3, bool> {
+	using super = std::pair<hvec3, bool>;
+public:
+	vsTriangleResult(const super&s):super(s){}
+	vsTriangleResult(){}
+
+	hvec3& uvt() { return this->first; }
+	bool& intoExtend() { return this->second; }
+	const hvec3& uvt() const{ return this->first; }
+	const bool& intoExtend() const{ return this->second; }
+
+
+};
 struct narrowphaseResultElement {
 	ray r;
 	gindex tri;
-	hvec3 uvt;
+	vsTriangleResult vsTriRez;
 
 	narrowphaseResultElement(){}
-	narrowphaseResultElement(const broadphaseResultElement& bprez, const hvec3& uvtrez) :r(bprez.first), tri(bprez.second), uvt(uvtrez){}
+	narrowphaseResultElement(const broadphaseResultElement& bprez, const vsTriangleResult& rez) :r(bprez.first), tri(bprez.second), vsTriRez(rez){}
 };
 using narrowphaseResults = std::deque<narrowphaseResultElement>;
 
@@ -501,8 +515,7 @@ namespace toolkit {
 
 	class narrowphaser {
 	protected:
-		using vsTriResult = std::pair<hvec3, bool>;//uvt,intoExtend
-		std::optional<vsTriResult> vsTriangle(const ray& r, const htri& tri);
+		std::optional<vsTriangleResult> vsTriangle(const ray& r, const htri& tri);
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
 
@@ -517,7 +530,7 @@ namespace toolkit {
 		exindex Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
 			exindex anyhitsize = 0;
 			for (const auto& rez : nprez) {
-				if (rez.uvt.at(2) < closests_gen->at(rez.r.index() - genhead).uvt.at(2)) {//登録済みのtよりrezのtが小さければ再登録
+				if (rez.vsTriRez.uvt().at(2) < closests_gen->at(rez.r.index() - genhead).vsTriRez.uvt().at(2)) {//登録済みのtよりrezのtが小さければ再登録
 					closests_gen->at(rez.r.index() - genhead) = rez;
 					anyhitsize++;
 				}
@@ -534,7 +547,7 @@ namespace toolkit {
 			using namespace half_float::literal;
 			for (const ray& r : nowgen) {
 				closests_gen->at(r.index() - genhead).r = r;//レイを挿入
-				closests_gen->at(r.index() - genhead).uvt = hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() });//無限遠で交差
+				closests_gen->at(r.index() - genhead).vsTriRez = std::make_pair(hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() }),false);//無限遠で交差 extendは不定
 			}
 		}
 
@@ -587,8 +600,9 @@ namespace toolkit {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
 				brunch nextbrunch;//今回生じるレイ
-				bool isTerminate = false;//
-				pays_allgen->at(r.r.index()).InstallContent((r.uvt.at(2) != std::numeric_limits<halff>::infinity()) ? mats.at(r.tri.blasId()).operator()(r, nextbrunch, ptlas,isTerminate) : mats.miss(r, nextbrunch, ptlas,isTerminate));
+				bool isTerminate = false;//このレイは終端であるか?
+				//レンダリング　対応したシェーダを呼び出してペイロードリストに追加
+				pays_allgen->at(r.r.index()).InstallContent((r.vsTriRez.uvt().at(2) != std::numeric_limits<halff>::infinity()) ? mats.at(r.tri.blasId()).operator()(r, nextbrunch, ptlas,isTerminate) : mats.miss(r, nextbrunch, ptlas,isTerminate));
 				
 				//終端か次世代が許可されなければ
 				if (isTerminate || !arrowNextgen)terminates->push_head(r.r.index());

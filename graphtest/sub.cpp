@@ -9,7 +9,7 @@ attribRez Attrib(const closesthit& att, const sptr<tlas>& ptlas) {
 	auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
 	rez.norm = ((evec3(tri.at(1).data()) - evec3(tri.at(0).data())).cross(evec3(tri.at(2).data()) - evec3(tri.at(0).data()))).normalized();
 	//ƒqƒbƒg“_‚ğ‹‚ß‚é
-	rez.hitpoint = (evec3(att.r.way().data()) * att.uvt.at(2)) + evec3(att.r.org().data());
+	rez.hitpoint = (evec3(att.r.way().data()) * att.vsTriRez.uvt().at(2)) + evec3(att.r.org().data());
 
 	//‹¾–Ê”½Ë
 	auto a = (-evec3(att.r.way().data())).dot(rez.norm);

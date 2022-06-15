@@ -168,7 +168,7 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 	return ret;
 }
 
-optional<toolkit::narrowphaser::vsTriResult> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
+optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
 	//std::cout << "ray" << std::endl;
 	//for (const auto& i : ray.way())
 	//	std::cout << i << "\t";
@@ -244,11 +244,9 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 
 		//ヒットしたら
 		if (vsRez.has_value()) {
-			auto& uvt = vsRez.value().first;
-			auto& intoExtend = vsRez.value().second;
-			if (uvt.at(2) > param_ignoreNearHit) {//無視値より大きい
+			if (vsRez.value().uvt().at(2) > param_ignoreNearHit) {//無視値より大きい
 				if (inciDot < param_ignoreParallelHit)//コサイン
-					rez->push_back(narrowphaseResultElement(bp, uvt));
+					rez->push_back(narrowphaseResultElement(bp,vsRez.value()));
 				else//かくどがちいさい=並行なら
 					;// cout << "ignored with parallel" << endl;
 			}
