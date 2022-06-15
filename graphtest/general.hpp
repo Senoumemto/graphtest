@@ -530,7 +530,12 @@ namespace toolkit {
 		exindex Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
 			exindex anyhitsize = 0;
 			for (const auto& rez : nprez) {
-				if (rez.vsTriRez.uvt().at(2) < closests_gen->at(rez.r.index() - genhead).vsTriRez.uvt().at(2)) {//“o˜^Ï‚İ‚Ìt‚æ‚èrez‚Ìt‚ª¬‚³‚¯‚ê‚ÎÄ“o˜^
+				//closest‚ªextend‚Ì‚Æ‚«A’§íÒ‚ªnot extend‚©t‚ª‚æ‚è‘å‚«‚¯‚ê‚ÎXV
+				//closest‚ªnot extend‚Ì‚Æ‚«A’§íÒ‚ªnot extend‚Å‚©‚Ât‚ª‚æ‚è‘å‚«‚¯‚ê‚Î
+				bool tLarger = rez.vsTriRez.uvt().at(2) < closests_gen->at(rez.r.index() - genhead).vsTriRez.uvt().at(2);//’§íÒ‚Ìt‚ª‘å‚«‚¢
+
+
+				if (closests_gen->at(rez.r.index() - genhead).vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() || tLarger) || !closests_gen->at(rez.r.index() - genhead).vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() && tLarger)) {//ã‚ÌğŒ‚ÅÄ“o˜^
 					closests_gen->at(rez.r.index() - genhead) = rez;
 					anyhitsize++;
 				}
@@ -547,7 +552,7 @@ namespace toolkit {
 			using namespace half_float::literal;
 			for (const ray& r : nowgen) {
 				closests_gen->at(r.index() - genhead).r = r;//ƒŒƒC‚ğ‘}“ü
-				closests_gen->at(r.index() - genhead).vsTriRez = std::make_pair(hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() }),false);//–³ŒÀ‰“‚ÅŒğ· extend‚Í•s’è
+				closests_gen->at(r.index() - genhead).vsTriRez = std::make_pair(hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() }),true);//–³ŒÀ‰“‚ÅŒğ· ‰½‚à‚È‚¢ó‘Ô‚Å‚Íextend‚ğó‚¯“ü‚ê‚é
 			}
 		}
 

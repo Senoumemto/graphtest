@@ -187,7 +187,7 @@ optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, con
 	using namespace half_float::literal;
 	// 微小な定数
 	const halff kEpsilon = std::numeric_limits<halff>::epsilon();
-	const halff extendMargine = kEpsilon * 100.0_h;//拡張領域のサイズ
+	const halff extendMargine = kEpsilon * 160.0_h;//拡張領域のサイズ
 	const halff margined1 = 1.0_h + extendMargine;//1.0より大きい最小の数
 	const halff doublemargined1 = margined1 + extendMargine;//1.0より大きい最小の数より大きい最小の数
 	const halff minusEps = -extendMargine;
