@@ -2,6 +2,7 @@
 
 using namespace std;
 using evec3 = Eigen::Vector3<halff>;
+using namespace half_float::literal;
 
 htri ToHaabb(const tri<double>& in) {
 	htri ret;
@@ -130,7 +131,7 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 
 	for (int y = 0; y < v; y++)
 		for (int x = 0; x < h; x++) {
-			//スクリーンの位置は((2/res)*i+(1/res))-1
+			//スクリーンの位置は((2/res)*i+(1/res))-1 ｽｸﾘｰﾝサイズは多分2*2
 			double scx = ((2.0 / h) * x + (1.0 / h) - 1.0) * asp;
 			double scy = (2.0 / v) * y + (1.0 / v) - 1.0;
 			double scz = dist;
@@ -140,6 +141,13 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 
 			this->push_back(ray({ hvec3({halff(0),halff(0),halff(0)}),hvec3({halff(scnormed.x()),halff(scnormed.y()),halff(scnormed.z())}) }));
 		}
+}
+
+halff camera::CalcDistFromFov(const halff& fov) {
+	//視野角の1/2がtan 1/dist
+	auto val = tan(fov / 2.0_h);
+
+	return 1.0_h / val;
 }
 
 aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
@@ -168,7 +176,7 @@ aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
 	return ret;
 }
 
-optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri) {
+optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, const htri& tri, const halff& extendSize) {
 	//std::cout << "ray" << std::endl;
 	//for (const auto& i : ray.way())
 	//	std::cout << i << "\t";
@@ -187,7 +195,7 @@ optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, con
 	using namespace half_float::literal;
 	// 微小な定数
 	const halff kEpsilon = std::numeric_limits<halff>::epsilon();
-	const halff extendMargine = kEpsilon * 160.0_h;//拡張領域のサイズ
+	const halff extendMargine = kEpsilon * extendSize;//拡張領域のサイズ
 	const halff margined1 = 1.0_h + extendMargine;//1.0より大きい最小の数
 	const halff doublemargined1 = margined1 + extendMargine;//1.0より大きい最小の数より大きい最小の数
 	const halff minusEps = -extendMargine;
@@ -204,7 +212,7 @@ optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, con
 	evec3 alpha = eway.cross(e2);
 	halff det = e1.dot(alpha);
 
-	if (std::abs(det) < kEpsilon)return nullopt;//並行すぎると無視
+	//if (std::abs(det) < kEpsilon)return nullopt;//並行すぎると無視
 
 	halff invdet = halff(1) / det;
 	evec3 r = eorg - evec3(tri.at(0).data());
@@ -239,7 +247,7 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 	using namespace half_float::literal;
 
 	for (const auto& bp : bprez) {
-		auto vsRez = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));
+		auto vsRez = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()),this->param_extendSize);
 		auto inciDot = incidenceNormDot(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));//法線とレイ方向の内積
 
 		//ヒットしたら

@@ -162,6 +162,8 @@ class camera : public rays {
 public:
 	//1x1の解像度h*vのスクリーンを焦点からdistだけ離したカメラを作成する
 	camera(size_t h, size_t v, double dist, double asp = 1.0);
+
+	static halff CalcDistFromFov(const halff& fov);
 };
 
 //blasとその変換を登録する構造　sceneに対応する
@@ -396,7 +398,8 @@ namespace toolkit {
 				tmax = t1 < tmax ? t1 : tmax;//遠面のうちより近いもの
 				//std::cout << tmin << "\t" << tmax << std::endl;
 
-				if (tmax < tmin)//交差しているならだめ
+				//if (tmax < tmin)//交差しているならだめ
+				if (tmin - tmax > param_aabbMargin)//交差しているならダメ　つまりtminの方が大きければだめ　ただしマージン有
 					return false;
 			}
 			return true;
@@ -515,11 +518,13 @@ namespace toolkit {
 
 	class narrowphaser {
 	protected:
-		std::optional<vsTriangleResult> vsTriangle(const ray& r, const htri& tri);
+		std::optional<vsTriangleResult> vsTriangle(const ray& r, const htri& tri,const halff& extendSize);
 	public:
 		sptr<tlas>ptlas;//ここにtlasをインストールして使う
+		halff param_extendSize;
 
 		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit, const halff param_ignoreParallelHit);
+		narrowphaser(const halff& extendSize):param_extendSize(extendSize){}
 	};
 
 

@@ -44,3 +44,44 @@ void ModLoader(const std::string& path, dmod& ret) {
 
 }
 
+
+hmat4 MakeTranslate(const hvec3& v) {
+	hmat4 ret;
+	ret <<	1.0_h, 0.0_h, 0.0_h, v.x(),
+			0.0_h, 1.0_h, 0.0_h, v.y(),
+			0.0_h, 0.0_h, 1.0_h, v.z(),
+			0.0_h, 0.0_h, 0.0_h, 1.0_h;
+	return ret;
+}
+hmat4 MakeScale(const hvec3& v) {
+	hmat4 ret;
+	ret <<	v.x(), 0.0_h, 0.0_h, 0.0_h,
+			0.0_h, v.y(), 0.0_h, 0.0_h,
+			0.0_h, 0.0_h, v.z(), 0.0_h,
+			0.0_h, 0.0_h, 0.0_h, 1.0_h;
+	return ret;
+}
+hmat4 MakeScale(const halff& s) {
+	return MakeScale(hvec3({ s,s,s }));
+}
+hmat4 ExtendMat(const hmat3& m) {
+	hmat4 ret;
+	for (int r = 0; r < 4; r++)
+		for (int c = 0; c < 4; c++) {
+			if (r < 3 && c < 3)
+				ret(r, c) = m(r, c);
+			else if (r == c)
+				ret(r, c) = 1;
+			else
+				ret(r, c) = 0;
+		}
+
+	return ret;
+}
+hmat4 MakeEular(const hvec3& r) {
+	auto rot = Eigen::AngleAxis<halff>(r.x(), Eigen::Vector3<halff>::UnitX())
+		* Eigen::AngleAxis<halff>(r.y(), Eigen::Vector3<halff>::UnitY())
+		* Eigen::AngleAxis<halff>(r.z(), Eigen::Vector3<halff>::UnitZ());
+
+	return ExtendMat(rot.matrix());
+}

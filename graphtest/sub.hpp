@@ -10,7 +10,7 @@
 using dmod = mod<double>;
 using dtri = tri<double>;
 using dvec3 = vec3<double>;
-
+using hmat3 = Eigen::Matrix3<halff>;
 //テストで1x1の正方形をｚ＝-１に作る
 int MakeTestSquare(dmod& ret);
 
@@ -37,3 +37,8 @@ struct attribRez {
 	ray refrect;
 };
 attribRez Attrib(const closesthit& att, const sptr<tlas>& ptlas);
+
+hmat4 MakeTranslate(const hvec3& v);
+hmat4 MakeScale(const hvec3& v);
+hmat4 MakeScale(const halff& s);
+hmat4 MakeEular(const hvec3& r);

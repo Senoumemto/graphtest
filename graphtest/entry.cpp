@@ -1,38 +1,41 @@
-
 #include"general.hpp"
 #include"sub.hpp"
 #include "int24.hpp"
 
-using evec3 = Eigen::Vector3<halff>;
-
 using namespace std;
 using namespace Eigen;
 using namespace half_float::literal;
+
+
+using evec3 = Eigen::Vector3<halff>;
 using Affine3h = Eigen::Transform<halff, 3, 2>;
 
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 1024;
+constexpr size_t CAMERA_RESOLUTION = 512;
+const halff CAMERA_FOV = halff(120.0 * std::numbers::pi / 180.0);
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//一本のレイから生じる分岐の最大値
-constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);
+constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);//一世代のレイの最大数
 
-const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;
-constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;
+const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;//全世代のレイの合計の最大数
+constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;//終端レイの最大数
 
 
-const halff IGNORE_NEARHIT = 0.00_h;//レイの当たり判定はt=これ以降で発生する
-const halff IGNORE_PARALLELHIT = 0.0_h;//norm dot directionがこれ以下
+const halff IGNORE_NEARHIT = 0.01_h;//レイの当たり判定はt=これ以降で発生する　透過光を通過させるときに必要
+const halff IGNORE_PARALLELHIT = 0.0_h;//norm dot directionがこれ以下のときナローフェーズが発生　カリングと並行光の無視が発生する
+
+const halff	TRIANGLE_EXTEND_SIZE = 32.0_h;//ポリゴンのサイズをイプシロンのこれ倍だけ拡張する 大きいほどナローフェーズが甘くなる
+const halff AABB_TIMES_MARGINE = 0.0_h;//vsAABBの交差時間のマージン　大きいほどブロードフェーズが甘くなる
+
+
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
-	//std::make_pair("../dia.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-3.0_h)))),
-	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,2.0_h,-5.0_h))).matrix(),HitMirror),
-	//std::make_pair("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,1.0_h,-8.0_h)))),
-	std::make_tuple("../ground.dae",hmat4::Identity(),HitLight)
+	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,1.1_h))).matrix(),HitLight),
+	std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
+	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-3.0_h,0.0_h))).matrix(),HitMirror)
 };
-//const std::vector<std::pair<string, Affine3h>> model_gen = { std::make_pair("../ico.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-5.0_h)))) };
-
 /*
 tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchyに変換　それを現像処理することでフレームを作成する
 アウターからコマンドを使ってカメラとblasとそれぞれの変換を送信　tlasを構成する
@@ -49,11 +52,8 @@ struct _machines{
 	toolkit::materialer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
 	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
 
-	_machines():broadphaser(0.0_h){}
+	_machines():broadphaser(AABB_TIMES_MARGINE),narrowphaser(TRIANGLE_EXTEND_SIZE) {}
 }machines;
-
-//payloadContent HitShader(const closesthit& att, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
-//payloadContent MissShader(const closesthit& str, toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch& nextgenlocal, exindicesWithHead* terminates, sptr<tlas> ptlas);
 
 
 //手順0(pre-phase)  アウターで行われるデータ構造の準備
@@ -75,11 +75,10 @@ prephaseRez PrePhase() {
 	}
 
 	//カメラを生成
-	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -1.0));
+	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -camera::CalcDistFromFov(CAMERA_FOV)));
 
 	return rez;
 }
-
 
 //手順1(upload-phase) blasやカメラをグラボに登録しrooterやbroad/narrow-phaserに登録(グラボ内部ではtlasと0-gen レイが作製される)
 struct regphaseRez {
@@ -109,12 +108,9 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	machines.materialer.mats.miss = MissShader;
 }
 
-
 int main() {
 
 	auto preRez = PrePhase();//アウターがデータを用意する(blasとcam)
-
-
 	RegPhase(preRez.objs, preRez.cam);//アウターがデータをグラボに登録(rooterへcam->0 gen raysが、broadphaserとnarrowphaserへblas-es->tlasが)
 
 	for (size_t gen = 0; gen < MAX_GENERATIONS; gen++) {
