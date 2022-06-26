@@ -13,6 +13,7 @@
 #include <functional>
 #include <tuple>
 #include <numbers>
+#include <random>
 
 #include<Eigen/Core>
 #include<Eigen/Dense>
@@ -167,12 +168,12 @@ public:
 };
 
 //blasとその変換を登録する構造　sceneに対応する
-class tlas :public std::vector<std::pair<hmat4, sptr<blas>>>{
+class las :public std::vector<std::pair<hmat4, sptr<blas>>>{
 	using blasset = std::pair<hmat4, sptr<blas>>;
 	using super = std::vector<blasset>;
 public:
-	tlas(const super&s):super(s){}
-	tlas():super(){}
+	las(const super&s):super(s){}
+	las():super(){}
 };
 
 //g-index tlasからtriをたどれるindex
@@ -283,8 +284,11 @@ template<size_t res>struct bitmap :public std::array<hvec3, res* res>{};
 //グラボの機能を実装
 namespace toolkit {
 	//メモリコレクション
-	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES>class memoryCollection {
+	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES,size_t ATTRIB_SIZE,size_t TRIANGLES_NUM_LIMIT>class memoryCollection {
 		using payloads = std::vector<payload_type>;
+		using attribute = std::array<halff, ATTRIB_SIZE>;
+		using triangleAttribute = std::array<attribute, 3>;
+		using triangleAttributes = std::vector<triangleAttribute>;
 
 		uptr<rays> rays_allgen;//全世代のrayリスト(グローバル空間)
 		uptr<payloads>pays_allgen;//全世代のペイロードリスト
@@ -292,23 +296,31 @@ namespace toolkit {
 		uptr<closesthits>closests_gen;//今世代のclosesthit
 
 		uptr<exindicesWithHead> terminates;//終端になるレイ(つまり光の発生点)の集合
+
+		uptr<triangleAttributes> attributes;//面属性
+
+		uptr<las>plas;//las
 	public:
 		memoryCollection() {
 			rays_allgen.reset(new rays(RAYNUM_LIMIT_ALLGEN));
 			pays_allgen.reset(new payloads(RAYNUM_LIMIT_ALLGEN));
 			closests_gen.reset(new closesthits(RAYNUM_LIMIT_GENERATION));
 			terminates.reset(new exindicesWithHead(RAYNUM_LIMIT_TERMINATES));
+			attributes.reset(new triangleAttributes(TRIANGLES_NUM_LIMIT));
+
+			plas.reset(new las);
 		}
 
 		rays* GetAllGenRays() { return rays_allgen.get(); }
 		payloads* GetAllGenPayloads() { return pays_allgen.get(); }
 		closesthits* GetNowGenClosests() { return closests_gen.get(); }
 		exindicesWithHead* GetTerminates() { return terminates.get(); }
+		las* GetLAS() { return plas.get(); }
 	};
 
 
 	//レイを配布してくれるやつ
-	template<size_t cachesize,typename paytype>class rooter {
+	template<size_t cachesize,typename paytype>class generator {
 		using payloads = std::vector<paytype>;
 
 		//sptr<payed_rays<paytype>> cache;
@@ -321,7 +333,7 @@ namespace toolkit {
 		exindex nowhead;//追加されるレイの頭位置
 		exindex genhead;//次世代の頭位置
 	public:
-		rooter():nowhead(0),genhead(0) {}
+		generator():nowhead(0),genhead(0) {}
 
 		//レイ集合を登録する　親のいない(0世代のレイを追加)=カメラ
 		void RegisterRays(const rays& rs, rays* rays_allgen, payloads* pays_allgen) {
@@ -418,7 +430,7 @@ namespace toolkit {
 			return ret;
 		}
 	public:
-		sptr<tlas>ptlas;//ここにtlasをインストールして使う
+		//sptr<tlas>ptlas;//ここにtlasをインストールして使う
 
 
 		//トレーサーコア
@@ -427,16 +439,16 @@ namespace toolkit {
 			bool isInv;//ただいま逆行中 移行できるようになるまで逆行を続ける
 			broadphaser<coren>* parent;
 
-			//rで親のptlasに対してレイトレーシングを行い広域衝突情報のリストを返す
-			std::deque<std::pair<ray,gindex>> Raytrace(const ray& r_grobal) {
+			//rで親のplasに対してレイトレーシングを行い広域衝突情報のリストを返す
+			std::deque<std::pair<ray,gindex>> Raytrace(const ray& r_grobal,const las* plas) {
 				using evec3 = Eigen::Vector3<halff>;
 				using evec4 = Eigen::Vector4<halff>;
 				using namespace half_float::literal;
 
 				std::deque<std::pair<ray,gindex>> ret;
 				//blasごとに行う
-				for (sindex blasid = 0; blasid < parent->ptlas->size();blasid++) {
-					const auto& blasset = parent->ptlas->at(blasid);
+				for (sindex blasid = 0; blasid < plas->size();blasid++) {
+					const auto& blasset = plas->at(blasid);
 					//変換をレイに適用する
 					ray r;
 					r.indexed(r_grobal.index());//同一のレイである
@@ -499,13 +511,13 @@ namespace toolkit {
 				i.parent = this;
 		}
 
-		sptr<broadphaseResults> Broadphase(const rays& rs) {
+		sptr<broadphaseResults> Broadphase(const rays& rs,const las* plas) {
 
 			sptr<broadphaseResults> ret(new broadphaseResults);
 
 			//rsから複製してrを得る
 			for (const ray& r : rs) {
-				auto r_sHits = cores.front().Raytrace(r);//ブロードフェーズを行い広域衝突情報を受け取る
+				auto r_sHits = cores.front().Raytrace(r,plas);//ブロードフェーズを行い広域衝突情報を受け取る
 
 				for (const auto& g : r_sHits)
 					ret->push_back(g);
@@ -520,10 +532,10 @@ namespace toolkit {
 	protected:
 		std::optional<vsTriangleResult> vsTriangle(const ray& r, const htri& tri,const halff& extendSize);
 	public:
-		sptr<tlas>ptlas;//ここにtlasをインストールして使う
+		//sptr<tlas>ptlas;//ここにtlasをインストールして使う
 		halff param_extendSize;
 
-		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit, const halff param_ignoreParallelHit);
+		sptr<narrowphaseResults> RayTrace(const broadphaseResults& bprez,const halff param_ignoreNearHit, const halff param_ignoreParallelHit, const las* plas);
 		narrowphaser(const halff& extendSize):param_extendSize(extendSize){}
 	};
 
@@ -597,8 +609,8 @@ namespace toolkit {
 			}
 
 		};
-		sptr<tlas>ptlas;
-		using shader = std::function<payloadContent(const closesthit&, brunch&, sptr<tlas>,bool&)>;
+		//sptr<tlas>ptlas;
+		using shader = std::function<payloadContent(const closesthit&, brunch&,const las*,bool&)>;
 		//シェーダーリスト blas-idを用いる
 		struct shaderlist :public std::vector<shader> {
 			shader miss;
@@ -606,19 +618,19 @@ namespace toolkit {
 
 		shaderlist mats;//shader HitShader, MissShader;
 
-		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize) {
+		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize,const las* plas) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
 				brunch nextbrunch;//今回生じるレイ
 				bool isTerminate = false;//このレイは終端であるか?
 				//レンダリング　対応したシェーダを呼び出してペイロードリストに追加
-				pays_allgen->at(r.r.index()).InstallContent((r.vsTriRez.uvt().at(2) != std::numeric_limits<halff>::infinity()) ? mats.at(r.tri.blasId()).operator()(r, nextbrunch, ptlas,isTerminate) : mats.miss(r, nextbrunch, ptlas,isTerminate));
+				pays_allgen->at(r.r.index()).InstallContent((r.vsTriRez.uvt().at(2) != std::numeric_limits<halff>::infinity()) ? mats.at(r.tri.blasId()).operator()(r, nextbrunch, plas,isTerminate) : mats.miss(r, nextbrunch, plas,isTerminate));
 				
 				//終端か次世代が許可されなければ
 				if (isTerminate || !arrowNextgen)terminates->push_head(r.r.index());
 
 				for (int i = 0; i < nextbrunch.head; i++) {
-					ApplyToRay(ptlas->at(r.tri.blasId()).first.inverse(), nextbrunch.at(i).GetRay());
+					ApplyToRay(plas->at(r.tri.blasId()).first.inverse(), nextbrunch.at(i).GetRay());
 					nextgen.push_back(nextbrunch.at(i));
 				}
 			}

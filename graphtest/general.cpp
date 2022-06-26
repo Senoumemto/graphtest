@@ -242,13 +242,13 @@ halff incidenceNormDot(const ray& ray, const htri& tri) {
 	return norm.dot(direction);
 }
 
-sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit,const halff param_ignoreParallelHit) {
+sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit,const halff param_ignoreParallelHit,const las* plas) {
 	sptr<narrowphaseResults> rez(new narrowphaseResults);
 	using namespace half_float::literal;
 
 	for (const auto& bp : bprez) {
-		auto vsRez = vsTriangle(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()),this->param_extendSize);
-		auto inciDot = incidenceNormDot(bp.first, ptlas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));//法線とレイ方向の内積
+		auto vsRez = vsTriangle(bp.first, plas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()),this->param_extendSize);
+		auto inciDot = incidenceNormDot(bp.first, plas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()));//法線とレイ方向の内積
 
 		//ヒットしたら
 		if (vsRez.has_value()) {

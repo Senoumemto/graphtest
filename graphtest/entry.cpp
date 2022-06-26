@@ -21,6 +21,9 @@ constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTI
 const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;//全世代のレイの合計の最大数
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;//終端レイの最大数
 
+constexpr size_t ATTRIBUTE_SIZE = 1;
+constexpr size_t TRIANGLES_NUM_LIMIT = 1024;
+
 
 const halff IGNORE_NEARHIT = 0.01_h;//レイの当たり判定はt=これ以降で発生する　透過光を通過させるときに必要
 const halff IGNORE_PARALLELHIT = 0.0_h;//norm dot directionがこれ以下のときナローフェーズが発生　カリングと並行光の無視が発生する
@@ -43,9 +46,9 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 
 //装置たち
 struct _machines{
-	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES> memory;
+	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES,ATTRIBUTE_SIZE,TRIANGLES_NUM_LIMIT> memory;
 
-	toolkit::rooter<RAYNUM_LIMIT_ALL,payload> rooter;
+	toolkit::generator<RAYNUM_LIMIT_ALL,payload> generator;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
 	toolkit::anyhit<RAYNUM_LIMIT_GENERATION> anyhit;
@@ -67,12 +70,15 @@ prephaseRez PrePhase() {
 
 	prephaseRez rez;
 	//手順0(事前処理) モデルを読み込んでblasを作成する&カメラを作成する
+	size_t trianglesnum_sum = 0;
 	for (const auto& p : model_gen) {
 		dmod tempmod;
 		ModLoader(std::get<0>(p), tempmod);
+		trianglesnum_sum += tempmod.size();
 		sptr<blas> obj(new blas(tempmod));
 		rez.objs.push_back(obj);
 	}
+	if (trianglesnum_sum > TRIANGLES_NUM_LIMIT)throw std::out_of_range("Triangle included LAS are more than TRIANGLES_NUM_LIMIT");
 
 	//カメラを生成
 	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -camera::CalcDistFromFov(CAMERA_FOV)));
@@ -82,24 +88,18 @@ prephaseRez PrePhase() {
 
 //手順1(upload-phase) blasやカメラをグラボに登録しrooterやbroad/narrow-phaserに登録(グラボ内部ではtlasと0-gen レイが作製される)
 struct regphaseRez {
-	sptr<tlas> scene;
+	sptr<las> scene;
 };
 void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 
 	//tlasを作製
-	sptr<tlas> scene(new tlas);
 	for (int i = 0; i < objs.size(); i++) {
-		scene->push_back(make_pair(std::get<1>(model_gen.at(i)).inverse(), objs.at(i)));//blasとその変換を登録
+		machines.memory.GetLAS()->push_back(make_pair(std::get<1>(model_gen.at(i)).inverse(), objs.at(i)));//blasとその変換を登録
 		machines.materialer.mats.push_back(std::get<2>(model_gen.at(i)));
 	}
 
 
-	machines.rooter.RegisterRays(*cam, machines.memory.GetAllGenRays(), machines.memory.GetAllGenPayloads());
-
-	//トレーサーにtlasをそれにインストール
-	machines.broadphaser.ptlas = scene;
-	machines.narrowphaser.ptlas = scene;
-	machines.materialer.ptlas = scene;
+	machines.generator.RegisterRays(*cam, machines.memory.GetAllGenRays(), machines.memory.GetAllGenPayloads());
 
 	////シェーダーをインストール
 	//machines.materialer.mats.push_back(HitMirror);
@@ -116,22 +116,22 @@ int main() {
 	for (size_t gen = 0; gen < MAX_GENERATIONS; gen++) {
 		exindex genhead;//全世代idと世代内idのオフセット
 		exindex gensize;//今世代のサイズ
-		auto generation = machines.rooter.GetGeneration(genhead, machines.memory.GetAllGenRays(), gensize);//rooterから世代を受け取る
+		auto generation = machines.generator.GetGeneration(genhead, machines.memory.GetAllGenRays(), gensize);//rooterから世代を受け取る
 
 		machines.anyhit.InstallGeneration(generation, genhead, machines.memory.GetNowGenClosests());//anyhitに今世代の情報を通知してあげる
 		cout << "Broadphase began" << endl;
-		auto bpRez = machines.broadphaser.Broadphase(generation);//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
+		auto bpRez = machines.broadphaser.Broadphase(generation,machines.memory.GetLAS());//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
 
 		cout << "narrowphase began" << endl;
-		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT);//ブロードフェーズ結果からナローフェーズを行う
+		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT,machines.memory.GetLAS());//ブロードフェーズ結果からナローフェーズを行う
 
 		cout << "anyhit phase began" << endl;
 		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetNowGenClosests());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 		cout << "shading began" << endl;
 		parentedRays nextgen;
-		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, gen+1 < MAX_GENERATIONS, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize);//レイの表面での振る舞いを計算 next gen raysを生成
-		machines.rooter.RegisterRays(nextgen, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
+		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize, machines.memory.GetLAS());//レイの表面での振る舞いを計算 next gen raysを生成
+		machines.generator.RegisterRays(nextgen, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
 
 		cout << "\t" << gen << "th generation report\n"
 			<< "\t\tgensize= " << generation.size() << "\n"

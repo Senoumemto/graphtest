@@ -36,7 +36,7 @@ struct attribRez {
 	Eigen::Vector3<halff> hitpoint;
 	ray refrect;
 };
-attribRez Attrib(const closesthit& att, const sptr<tlas>& ptlas);
+attribRez Attrib(const closesthit& att, const las* ptlas);
 
 hmat4 MakeTranslate(const hvec3& v);
 hmat4 MakeScale(const hvec3& v);

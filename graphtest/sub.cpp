@@ -3,7 +3,7 @@
 using evec3 = Eigen::Vector3<halff>;
 using namespace half_float::literal;
 
-attribRez Attrib(const closesthit& att, const sptr<tlas>& ptlas) {
+attribRez Attrib(const closesthit& att, const las* ptlas) {
 	attribRez rez;
 	//–@ü‚ð‹‚ß‚é
 	auto tri = ptlas->at(att.tri.blasId()).second->triangles.at(att.tri.triId());
