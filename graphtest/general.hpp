@@ -284,38 +284,45 @@ template<size_t res>struct bitmap :public std::array<hvec3, res* res>{};
 //グラボの機能を実装
 namespace toolkit {
 	//メモリコレクション
-	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES,size_t ATTRIB_SIZE,size_t TRIANGLES_NUM_LIMIT>class memoryCollection {
+	template<size_t ATTRIB_SIZE>using attributeFramework = std::array<halff, ATTRIB_SIZE>;
+	template<typename attribute>using triangleAttributeFramework = std::array<attribute, 3>;
+	template<typename attribute>using triangleAttributesFramework = std::vector<triangleAttributeFramework<attribute>>;
+	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES,size_t ATTRIB_SIZE,size_t BLASNUM_LIMIT,size_t TRIANGLES_NUM_LIMIT>class memoryCollection {
 		using payloads = std::vector<payload_type>;
-		using attribute = std::array<halff, ATTRIB_SIZE>;
-		using triangleAttribute = std::array<attribute, 3>;
-		using triangleAttributes = std::vector<triangleAttribute>;
+		using attribute = attributeFramework<ATTRIB_SIZE>;
+		using triangleAttribute = triangleAttributeFramework<attribute>;
+		using triangleAttributes = triangleAttributesFramework<attribute>;
+		using attributesSet = std::vector<triangleAttributes>;//blasid-attributesのリスト
 
-		uptr<rays> rays_allgen;//全世代のrayリスト(グローバル空間)
-		uptr<payloads>pays_allgen;//全世代のペイロードリスト
+		uptr<rays> allows_allgen;//全世代のrayリスト(グローバル空間)
+		uptr<payloads>payloads_allgen;//全世代のペイロードリスト
 
-		uptr<closesthits>closests_gen;//今世代のclosesthit
+		uptr<closesthits>closesthits_gen;//今世代のclosesthit
 
-		uptr<exindicesWithHead> terminates;//終端になるレイ(つまり光の発生点)の集合
+		uptr<exindicesWithHead> terminates_allgen;//終端になるレイ(つまり光の発生点)の集合
 
-		uptr<triangleAttributes> attributes;//面属性
+		uptr<attributesSet> attributes;//面属性
 
 		uptr<las>plas;//las
 	public:
 		memoryCollection() {
-			rays_allgen.reset(new rays(RAYNUM_LIMIT_ALLGEN));
-			pays_allgen.reset(new payloads(RAYNUM_LIMIT_ALLGEN));
-			closests_gen.reset(new closesthits(RAYNUM_LIMIT_GENERATION));
-			terminates.reset(new exindicesWithHead(RAYNUM_LIMIT_TERMINATES));
-			attributes.reset(new triangleAttributes(TRIANGLES_NUM_LIMIT));
+			allows_allgen.reset(new rays(RAYNUM_LIMIT_ALLGEN));
+			payloads_allgen.reset(new payloads(RAYNUM_LIMIT_ALLGEN));
+			closesthits_gen.reset(new closesthits(RAYNUM_LIMIT_GENERATION));
+			terminates_allgen.reset(new exindicesWithHead(RAYNUM_LIMIT_TERMINATES));
+			attributes.reset(new attributesSet(BLASNUM_LIMIT));
+			for (auto& i : attributes.operator*())
+				i.resize(TRIANGLES_NUM_LIMIT);
 
 			plas.reset(new las);
 		}
 
-		rays* GetAllGenRays() { return rays_allgen.get(); }
-		payloads* GetAllGenPayloads() { return pays_allgen.get(); }
-		closesthits* GetNowGenClosests() { return closests_gen.get(); }
-		exindicesWithHead* GetTerminates() { return terminates.get(); }
+		rays* GetAllowsAllgen() { return allows_allgen.get(); }
+		payloads* GetPayloadsAllgen() { return payloads_allgen.get(); }
+		closesthits* GetClosesthitsGen() { return closesthits_gen.get(); }
+		exindicesWithHead* GetTerminatesGen() { return terminates_allgen.get(); }
 		las* GetLAS() { return plas.get(); }
+		attributesSet* GetAttributes() { return attributes.get(); }
 	};
 
 
@@ -540,7 +547,7 @@ namespace toolkit {
 	};
 
 
-	template<exindex cachesize>class anyhit {
+	template<exindex cachesize>class obstructer {
 	protected:
 		closesthits* closests_gen;
 	public:
@@ -573,10 +580,10 @@ namespace toolkit {
 			}
 		}
 
-		anyhit(){}
+		obstructer(){}
 	};
 
-	template<exindex cachesize,sindex brunchsize>class materialer {
+	template<exindex cachesize,sindex brunchsize>class materializer {
 
 
 		void ApplyToRay(const hmat4& m, ray& r) {
@@ -638,10 +645,10 @@ namespace toolkit {
 			return pays_allgen;
 		}
 
-		materialer(){}
+		materializer(){}
 	};
 
-	template<typename paytype,size_t res> class developper {
+	template<typename paytype,size_t res> class developer {
 		//eeにerを掛け加える
 		void MulHvec(hvec3& ee,const hvec3& er) {
 			for (int i = 0; i < 3; i++)

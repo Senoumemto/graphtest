@@ -6,7 +6,7 @@ using evec3 = Eigen::Vector3<halff>;
 const extern sindex RAYNUM_LIMIT_BRUNCH;
 const extern exindex RAYNUM_LIMIT_ALL;
 
-using brunch = toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch;
+using brunch = toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch;
 
 payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	using evec3 = Eigen::Vector3<halff>;

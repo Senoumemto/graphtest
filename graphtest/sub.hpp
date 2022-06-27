@@ -42,3 +42,23 @@ hmat4 MakeTranslate(const hvec3& v);
 hmat4 MakeScale(const hvec3& v);
 hmat4 MakeScale(const halff& s);
 hmat4 MakeEular(const hvec3& r);
+
+template<typename ATTRIB_TYPE>void MakeDammyAttributes(size_t siz, toolkit::triangleAttributesFramework<ATTRIB_TYPE>& triAttribs) {
+	using namespace std;
+
+	cout << "attrib size " << siz << endl;
+
+	//‘‚«ž‚Ý
+	for (size_t i = 0; i < siz; i++) {
+		toolkit::triangleAttributeFramework<ATTRIB_TYPE>& triAttrib = triAttribs.at(i);
+
+		for (size_t j = 0; j < 3; j++) {
+			ATTRIB_TYPE& attrib = triAttrib.at(j);
+			
+			attrib.at(0) = 0;
+			attrib.at(1) = 1;
+			attrib.at(2) = 0;
+		}
+	}
+
+}

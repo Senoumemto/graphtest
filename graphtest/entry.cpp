@@ -21,8 +21,9 @@ constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTI
 const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATIONS*2;//‘S¢‘ã‚ÌƒŒƒC‚Ì‡Œv‚ÌÅ‘å”
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;//I’[ƒŒƒC‚ÌÅ‘å”
 
-constexpr size_t ATTRIBUTE_SIZE = 1;
-constexpr size_t TRIANGLES_NUM_LIMIT = 1024;
+constexpr size_t BLASNUM_LIMIT = 8;//blas‚Ì”‚Ì§ŒÀ@‚±‚ê‚¾‚¯‚ÌƒIƒuƒWƒFƒNƒg‚ğ”z’u‚Å‚«‚é
+constexpr size_t ATTRIBUTE_SIZE = 3;//ƒAƒgƒŠƒrƒ…[ƒg‚Ì‘å‚«‚³[word]
+constexpr size_t TRIANGLES_NUM_LIMIT = 1024;//triangle‚ÌÅ‘å” ‚±‚ê‚¾‚¯‚Ìtriangle‚ğ—pˆÓ‚Å‚«‚é
 
 
 const halff IGNORE_NEARHIT = 0.01_h;//ƒŒƒC‚Ì“–‚½‚è”»’è‚Ít=‚±‚êˆÈ~‚Å”­¶‚·‚é@“§‰ßŒõ‚ğ’Ê‰ß‚³‚¹‚é‚Æ‚«‚É•K—v
@@ -34,7 +35,7 @@ const halff AABB_TIMES_MARGINE = 0.0_h;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒ
 
 
 #include "shaders.cpp"
-const std::vector<std::tuple<string, hmat4,toolkit::materialer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
+const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
 	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,1.1_h))).matrix(),HitLight),
 	std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
 	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-3.0_h,0.0_h))).matrix(),HitMirror)
@@ -46,14 +47,14 @@ tlas‚ğƒAƒEƒ^[‚©‚ç‚È‚ñ‚Æ‚©\’z‚µ@‚»‚ê‚ÉƒŒƒCƒgƒŒ[ƒXˆ—‚ğs‚¤‚±‚Æ‚ÅrayHierarchy
 
 //‘•’u‚½‚¿
 struct _machines{
-	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES,ATTRIBUTE_SIZE,TRIANGLES_NUM_LIMIT> memory;
+	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES,ATTRIBUTE_SIZE,BLASNUM_LIMIT,TRIANGLES_NUM_LIMIT> memory;
 
 	toolkit::generator<RAYNUM_LIMIT_ALL,payload> generator;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
-	toolkit::anyhit<RAYNUM_LIMIT_GENERATION> anyhit;
-	toolkit::materialer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
-	toolkit::developper<payload, CAMERA_RESOLUTION> developper;
+	toolkit::obstructer<RAYNUM_LIMIT_GENERATION> anyhit;
+	toolkit::materializer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
+	toolkit::developer<payload, CAMERA_RESOLUTION> developper;
 
 	_machines():broadphaser(AABB_TIMES_MARGINE),narrowphaser(TRIANGLE_EXTEND_SIZE) {}
 }machines;
@@ -80,6 +81,10 @@ prephaseRez PrePhase() {
 	}
 	if (trianglesnum_sum > TRIANGLES_NUM_LIMIT)throw std::out_of_range("Triangle included LAS are more than TRIANGLES_NUM_LIMIT");
 
+	//‰¼‚ÌƒAƒgƒŠƒrƒ…[ƒg
+	for (size_t i=0;i<rez.objs.size();i++)
+		MakeDammyAttributes<toolkit::attributeFramework<ATTRIBUTE_SIZE>>(rez.objs.at(i).get()->triangles.size(),machines.memory.GetAttributes()->at(i));
+
 	//ƒJƒƒ‰‚ğ¶¬
 	rez.cam.reset(new camera(CAMERA_RESOLUTION, CAMERA_RESOLUTION, -camera::CalcDistFromFov(CAMERA_FOV)));
 
@@ -99,7 +104,7 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	}
 
 
-	machines.generator.RegisterRays(*cam, machines.memory.GetAllGenRays(), machines.memory.GetAllGenPayloads());
+	machines.generator.RegisterRays(*cam, machines.memory.GetAllowsAllgen(), machines.memory.GetPayloadsAllgen());
 
 	////ƒVƒF[ƒ_[‚ğƒCƒ“ƒXƒg[ƒ‹
 	//machines.materialer.mats.push_back(HitMirror);
@@ -116,22 +121,22 @@ int main() {
 	for (size_t gen = 0; gen < MAX_GENERATIONS; gen++) {
 		exindex genhead;//‘S¢‘ãid‚Æ¢‘ã“àid‚ÌƒIƒtƒZƒbƒg
 		exindex gensize;//¡¢‘ã‚ÌƒTƒCƒY
-		auto generation = machines.generator.GetGeneration(genhead, machines.memory.GetAllGenRays(), gensize);//rooter‚©‚ç¢‘ã‚ğó‚¯æ‚é
+		auto generation = machines.generator.GetGeneration(genhead, machines.memory.GetAllowsAllgen(), gensize);//rooter‚©‚ç¢‘ã‚ğó‚¯æ‚é
 
-		machines.anyhit.InstallGeneration(generation, genhead, machines.memory.GetNowGenClosests());//anyhit‚É¡¢‘ã‚Ìî•ñ‚ğ’Ê’m‚µ‚Ä‚ ‚°‚é
+		machines.anyhit.InstallGeneration(generation, genhead, machines.memory.GetClosesthitsGen());//anyhit‚É¡¢‘ã‚Ìî•ñ‚ğ’Ê’m‚µ‚Ä‚ ‚°‚é
 		cout << "Broadphase began" << endl;
 		auto bpRez = machines.broadphaser.Broadphase(generation,machines.memory.GetLAS());//ƒuƒ[ƒhƒtƒF[ƒY‚ğs‚¤@‹U—z«‚ğ‚Âray,g-indexŒ‹‰Ê‚ğ“¾‚é
 
 		cout << "narrowphase began" << endl;
 		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT,machines.memory.GetLAS());//ƒuƒ[ƒhƒtƒF[ƒYŒ‹‰Ê‚©‚çƒiƒ[ƒtƒF[ƒY‚ğs‚¤
 
-		cout << "anyhit phase began" << endl;
-		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetNowGenClosests());//ƒŒƒC‚ÌÕ•Á‚ğŒvZ‚µclosest-hit‚ğŒvZ‚·‚é@‚±‚±‚Å‚Í¢‘ã“àid‚ğg‚Á‚Ä‚¢‚é‚Ì‚Å’ˆÓ
+		cout << "Obstructer phase began" << endl;
+		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetClosesthitsGen());//ƒŒƒC‚ÌÕ•Á‚ğŒvZ‚µclosest-hit‚ğŒvZ‚·‚é@‚±‚±‚Å‚Í¢‘ã“àid‚ğg‚Á‚Ä‚¢‚é‚Ì‚Å’ˆÓ
 
-		cout << "shading began" << endl;
+		cout << "Materializer began" << endl;
 		parentedRays nextgen;
-		machines.materialer.Shading(*machines.memory.GetNowGenClosests(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates(), gensize, machines.memory.GetLAS());//ƒŒƒC‚Ì•\–Ê‚Å‚ÌU‚é•‘‚¢‚ğŒvZ next gen rays‚ğ¶¬
-		machines.generator.RegisterRays(nextgen, machines.memory.GetAllGenRays(),machines.memory.GetAllGenPayloads());
+		machines.materialer.Shading(*machines.memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen(), gensize, machines.memory.GetLAS());//ƒŒƒC‚Ì•\–Ê‚Å‚ÌU‚é•‘‚¢‚ğŒvZ next gen rays‚ğ¶¬
+		machines.generator.RegisterRays(nextgen, machines.memory.GetAllowsAllgen(),machines.memory.GetPayloadsAllgen());
 
 		cout << "\t" << gen << "th generation report\n"
 			<< "\t\tgensize= " << generation.size() << "\n"
@@ -139,7 +144,7 @@ int main() {
 			<< "\t\tnarrowphase hits num: " << npRez->size() << "\n"
 			<< "\t\tanyhits num: " << anyhitsize << "\n"
 			<< "\t\tnext generation size: " << nextgen.size() << "\n\n"
-			<< "\t\tterminates size: " << machines.memory.GetTerminates()->head << "\n";
+			<< "\t\tterminates size: " << machines.memory.GetTerminatesGen()->head << "\n";
 
 		//Ÿ¢‘ãƒŒƒC‚ª”­¶‚µ‚È‚¢‚È‚çI—¹
 		if (nextgen.empty())break;
@@ -147,7 +152,7 @@ int main() {
 
 
 	cout << "developping began" << endl;
-	auto pixels = machines.developper.Develop(machines.memory.GetAllGenPayloads(), machines.memory.GetTerminates());//ƒŒƒCƒqƒGƒ‰ƒ‹ƒL[‚©‚çŒ»‘œ‚·‚é
+	auto pixels = machines.developper.Develop(machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen());//ƒŒƒCƒqƒGƒ‰ƒ‹ƒL[‚©‚çŒ»‘œ‚·‚é
 
 	cout << "It is going to be completly soon..." << endl;
 	PrintBmp<CAMERA_RESOLUTION>("out.bmp", *pixels);
