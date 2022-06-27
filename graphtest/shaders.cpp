@@ -5,8 +5,9 @@ using evec3 = Eigen::Vector3<halff>;
 
 const extern sindex RAYNUM_LIMIT_BRUNCH;
 const extern exindex RAYNUM_LIMIT_ALL;
+const extern size_t ATTRIBUTE_SIZE;
 
-using brunch = toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::brunch;
+using brunch = toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::brunch;
 
 payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	using evec3 = Eigen::Vector3<halff>;

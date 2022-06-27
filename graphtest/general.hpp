@@ -287,12 +287,13 @@ namespace toolkit {
 	template<size_t ATTRIB_SIZE>using attributeFramework = std::array<halff, ATTRIB_SIZE>;
 	template<typename attribute>using triangleAttributeFramework = std::array<attribute, 3>;
 	template<typename attribute>using triangleAttributesFramework = std::vector<triangleAttributeFramework<attribute>>;
+	template<typename attribute>using attributesSetFramework = std::vector<triangleAttributesFramework<attribute>>;
 	template<typename payload_type,size_t RAYNUM_LIMIT_ALLGEN,size_t RAYNUM_LIMIT_GENERATION,size_t RAYNUM_LIMIT_TERMINATES,size_t ATTRIB_SIZE,size_t BLASNUM_LIMIT,size_t TRIANGLES_NUM_LIMIT>class memoryCollection {
 		using payloads = std::vector<payload_type>;
 		using attribute = attributeFramework<ATTRIB_SIZE>;
 		using triangleAttribute = triangleAttributeFramework<attribute>;
 		using triangleAttributes = triangleAttributesFramework<attribute>;
-		using attributesSet = std::vector<triangleAttributes>;//blasid-attributesのリスト
+		using attributesSet = attributesSetFramework<attribute>;//blasid-attributesのリスト
 
 		uptr<rays> allows_allgen;//全世代のrayリスト(グローバル空間)
 		uptr<payloads>payloads_allgen;//全世代のペイロードリスト
@@ -583,7 +584,7 @@ namespace toolkit {
 		obstructer(){}
 	};
 
-	template<exindex cachesize,sindex brunchsize>class materializer {
+	template<exindex cachesize,sindex brunchsize,typename ATTRIB_TYPE>class materializer {
 
 
 		void ApplyToRay(const hmat4& m, ray& r) {
@@ -625,7 +626,7 @@ namespace toolkit {
 
 		shaderlist mats;//shader HitShader, MissShader;
 
-		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize,const las* plas) {
+		const payloads* Shading(const closesthits& hits,parentedRays& nextgen,bool arrowNextgen, payloads* pays_allgen,exindicesWithHead* terminates,size_t anyhitsize,const las* plas,const attributesSetFramework<ATTRIB_TYPE>* attribSet) {
 			for (size_t i = 0; i < anyhitsize; i++) {
 				const auto r = hits.at(i);
 				brunch nextbrunch;//今回生じるレイ

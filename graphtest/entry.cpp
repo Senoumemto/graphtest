@@ -22,7 +22,7 @@ const extern exindex RAYNUM_LIMIT_ALL = RAYNUM_LIMIT_GENERATION * MAX_GENERATION
 constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;//I’[ƒŒƒC‚ÌÅ‘å”
 
 constexpr size_t BLASNUM_LIMIT = 8;//blas‚Ì”‚Ì§ŒÀ@‚±‚ê‚¾‚¯‚ÌƒIƒuƒWƒFƒNƒg‚ğ”z’u‚Å‚«‚é
-constexpr size_t ATTRIBUTE_SIZE = 3;//ƒAƒgƒŠƒrƒ…[ƒg‚Ì‘å‚«‚³[word]
+const extern size_t ATTRIBUTE_SIZE = 3;//ƒAƒgƒŠƒrƒ…[ƒg‚Ì‘å‚«‚³[word]
 constexpr size_t TRIANGLES_NUM_LIMIT = 1024;//triangle‚ÌÅ‘å” ‚±‚ê‚¾‚¯‚Ìtriangle‚ğ—pˆÓ‚Å‚«‚é
 
 
@@ -35,7 +35,7 @@ const halff AABB_TIMES_MARGINE = 0.0_h;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒ
 
 
 #include "shaders.cpp"
-const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH>::shader>> model_gen = {
+const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader>> model_gen = {
 	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,1.1_h))).matrix(),HitLight),
 	std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
 	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-3.0_h,0.0_h))).matrix(),HitMirror)
@@ -53,7 +53,7 @@ struct _machines{
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
 	toolkit::obstructer<RAYNUM_LIMIT_GENERATION> obstructer;
-	toolkit::materializer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materializer;
+	toolkit::materializer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>> materializer;
 	toolkit::developer<payload, CAMERA_RESOLUTION> developer;
 
 	_machines():broadphaser(AABB_TIMES_MARGINE),narrowphaser(TRIANGLE_EXTEND_SIZE) {}
@@ -135,7 +135,7 @@ int main() {
 
 		cout << "Materializer began" << endl;
 		parentedRays nextgen;
-		machines.materializer.Shading(*machines.memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen(), gensize, machines.memory.GetLAS());//ƒŒƒC‚Ì•\–Ê‚Å‚ÌU‚é•‘‚¢‚ğŒvZ next gen rays‚ğ¶¬
+		machines.materializer.Shading(*machines.memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen(), gensize, machines.memory.GetLAS(),machines.memory.GetAttributes());//ƒŒƒC‚Ì•\–Ê‚Å‚ÌU‚é•‘‚¢‚ğŒvZ next gen rays‚ğ¶¬
 		machines.generator.RegisterRays(nextgen, machines.memory.GetAllowsAllgen(),machines.memory.GetPayloadsAllgen());
 
 		cout << "\t" << gen << "th generation report\n"
