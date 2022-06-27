@@ -52,9 +52,9 @@ struct _machines{
 	toolkit::generator<RAYNUM_LIMIT_ALL,payload> generator;
 	toolkit::broadphaser<CORE_NUM> broadphaser;
 	toolkit::narrowphaser narrowphaser;
-	toolkit::obstructer<RAYNUM_LIMIT_GENERATION> anyhit;
-	toolkit::materializer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materialer;
-	toolkit::developer<payload, CAMERA_RESOLUTION> developper;
+	toolkit::obstructer<RAYNUM_LIMIT_GENERATION> obstructer;
+	toolkit::materializer<RAYNUM_LIMIT_ALL,RAYNUM_LIMIT_BRUNCH> materializer;
+	toolkit::developer<payload, CAMERA_RESOLUTION> developer;
 
 	_machines():broadphaser(AABB_TIMES_MARGINE),narrowphaser(TRIANGLE_EXTEND_SIZE) {}
 }machines;
@@ -100,7 +100,7 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	//tlasを作製
 	for (int i = 0; i < objs.size(); i++) {
 		machines.memory.GetLAS()->push_back(make_pair(std::get<1>(model_gen.at(i)).inverse(), objs.at(i)));//blasとその変換を登録
-		machines.materialer.mats.push_back(std::get<2>(model_gen.at(i)));
+		machines.materializer.mats.push_back(std::get<2>(model_gen.at(i)));
 	}
 
 
@@ -110,7 +110,7 @@ void RegPhase(const vector<sptr<blas>>& objs, const sptr<camera>& cam) {
 	//machines.materialer.mats.push_back(HitMirror);
 	//machines.materialer.mats.push_back(HitMirror);
 
-	machines.materialer.mats.miss = MissShader;
+	machines.materializer.mats.miss = MissShader;
 }
 
 int main() {
@@ -123,7 +123,7 @@ int main() {
 		exindex gensize;//今世代のサイズ
 		auto generation = machines.generator.GetGeneration(genhead, machines.memory.GetAllowsAllgen(), gensize);//rooterから世代を受け取る
 
-		machines.anyhit.InstallGeneration(generation, genhead, machines.memory.GetClosesthitsGen());//anyhitに今世代の情報を通知してあげる
+		machines.obstructer.InstallGeneration(generation, genhead, machines.memory.GetClosesthitsGen());//anyhitに今世代の情報を通知してあげる
 		cout << "Broadphase began" << endl;
 		auto bpRez = machines.broadphaser.Broadphase(generation,machines.memory.GetLAS());//ブロードフェーズを行う　偽陽性を持つray,g-index結果を得る
 
@@ -131,11 +131,11 @@ int main() {
 		auto npRez = machines.narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT,machines.memory.GetLAS());//ブロードフェーズ結果からナローフェーズを行う
 
 		cout << "Obstructer phase began" << endl;
-		exindex anyhitsize=machines.anyhit.Anyhit(*npRez, genhead, machines.memory.GetClosesthitsGen());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
+		exindex anyhitsize=machines.obstructer.Anyhit(*npRez, genhead, machines.memory.GetClosesthitsGen());//レイの遮蔽を計算しclosest-hitを計算する　ここでは世代内idを使っているので注意
 
 		cout << "Materializer began" << endl;
 		parentedRays nextgen;
-		machines.materialer.Shading(*machines.memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen(), gensize, machines.memory.GetLAS());//レイの表面での振る舞いを計算 next gen raysを生成
+		machines.materializer.Shading(*machines.memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen(), gensize, machines.memory.GetLAS());//レイの表面での振る舞いを計算 next gen raysを生成
 		machines.generator.RegisterRays(nextgen, machines.memory.GetAllowsAllgen(),machines.memory.GetPayloadsAllgen());
 
 		cout << "\t" << gen << "th generation report\n"
@@ -152,7 +152,7 @@ int main() {
 
 
 	cout << "developping began" << endl;
-	auto pixels = machines.developper.Develop(machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen());//レイヒエラルキーから現像する
+	auto pixels = machines.developer.Develop(machines.memory.GetPayloadsAllgen(), machines.memory.GetTerminatesGen());//レイヒエラルキーから現像する
 
 	cout << "It is going to be completly soon..." << endl;
 	PrintBmp<CAMERA_RESOLUTION>("out.bmp", *pixels);
