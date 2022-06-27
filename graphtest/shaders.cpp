@@ -18,13 +18,13 @@ payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, const las
 
 	halff doter = direction.normalized().dot(-light.normalized());
 	doter = std::max(0.0_h, doter);
-	doter = pow(doter, 1.0_h);
+	doter = pow(doter, 0.5_h);
 
 	//–³ŒÀ‰“‚É”ò‚ñ‚Ås‚Á‚½
 	isTerminate = true;
 
 	//doter = 0.0_h;
-	halff amb = 0.0_h;// +0.05_h;//ŠÂ‹«Œõ
+	halff amb = 0.05_h;// +0.05_h;//ŠÂ‹«Œõ
 	return payloadContent({ 1.0_h,1.0_h ,1.0_h }, { doter + amb,doter + amb,0.0_h });
 }
 payloadContent HitMirror(const closesthit& att, brunch& nextgenlocal, const las* plas,bool& isTerminate) {

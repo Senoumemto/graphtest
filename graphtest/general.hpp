@@ -407,7 +407,6 @@ namespace toolkit {
 			//	std::cout << i << "\t";
 			//std::cout << "\n" << std::endl;
 
-
 			for (int a = 0; a < 3; a++) {
 				halff invD = halff(1.0) / r.way()[a];
 				halff t0 = (box.min()[a] - r.org()[a]) * invD;//近面
@@ -462,6 +461,7 @@ namespace toolkit {
 					r.indexed(r_grobal.index());//同一のレイである
 					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0_h)).normalized(), false);
 					r.org() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.org().x(), r_grobal.org().y(), r_grobal.org().z(), 1.0_h)), true);
+
 
 					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
 

@@ -13,7 +13,7 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 512;
+constexpr size_t CAMERA_RESOLUTION = 256;
 const halff CAMERA_FOV = halff(120.0 * std::numbers::pi / 180.0);
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//ˆê–{‚ÌƒŒƒC‚©‚ç¶‚¶‚é•ªŠò‚ÌÅ‘å’l
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);//ˆê¢‘ã‚ÌƒŒƒC‚ÌÅ‘å”
@@ -23,7 +23,7 @@ constexpr exindex RAYNUM_LIMIT_TERMINATES = RAYNUM_LIMIT_GENERATION*2;//I’[ƒŒƒC
 
 constexpr size_t BLASNUM_LIMIT = 8;//blas‚Ì”‚Ì§ŒÀ@‚±‚ê‚¾‚¯‚ÌƒIƒuƒWƒFƒNƒg‚ğ”z’u‚Å‚«‚é
 const extern size_t ATTRIBUTE_SIZE = 3;//ƒAƒgƒŠƒrƒ…[ƒg‚Ì‘å‚«‚³[word]
-constexpr size_t TRIANGLES_NUM_LIMIT = 1024;//triangle‚ÌÅ‘å” ‚±‚ê‚¾‚¯‚Ìtriangle‚ğ—pˆÓ‚Å‚«‚é
+constexpr size_t TRIANGLES_NUM_LIMIT = 2048;//triangle‚ÌÅ‘å” ‚±‚ê‚¾‚¯‚Ìtriangle‚ğ—pˆÓ‚Å‚«‚é
 
 
 const halff IGNORE_NEARHIT = 0.01_h;//ƒŒƒC‚Ì“–‚½‚è”»’è‚Ít=‚±‚êˆÈ~‚Å”­¶‚·‚é@“§‰ßŒõ‚ğ’Ê‰ß‚³‚¹‚é‚Æ‚«‚É•K—v
@@ -36,8 +36,8 @@ const halff AABB_TIMES_MARGINE = 0.0_h;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒ
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader>> model_gen = {
-	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,1.1_h))).matrix(),HitLight),
-	std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
+	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,-2.1_h))).matrix(),HitMirror),
+	//std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
 	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-3.0_h,0.0_h))).matrix(),HitMirror)
 };
 /*
@@ -142,7 +142,7 @@ int main() {
 			<< "\t\tgensize= " << generation.size() << "\n"
 			<< "\t\tbroadphase hits num: " << bpRez->size() << "\n"
 			<< "\t\tnarrowphase hits num: " << npRez->size() << "\n"
-			<< "\t\tanyhits num: " << anyhitsize << "\n"
+			<< "\t\tclosests num: " << anyhitsize << "\n"
 			<< "\t\tnext generation size: " << nextgen.size() << "\n\n"
 			<< "\t\tterminates size: " << machines.memory.GetTerminatesGen()->head << "\n";
 
