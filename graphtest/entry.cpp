@@ -14,7 +14,7 @@ constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
 constexpr size_t CAMERA_RESOLUTION = 512;
-const halff CAMERA_FOV = halff(120.0 * std::numbers::pi / 180.0);
+const halff CAMERA_FOV = halff(60. * std::numbers::pi / 180.0);
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//ˆê–{‚ÌƒŒƒC‚©‚ç¶‚¶‚é•ªŠò‚ÌÅ‘å’l
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);//ˆê¢‘ã‚ÌƒŒƒC‚ÌÅ‘å”
 
@@ -36,7 +36,7 @@ const halff AABB_TIMES_MARGINE = 0.0_h;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒ
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader>> model_gen = {
-	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,-2.1_h))).matrix(),HitMirror),
+	std::make_tuple("../monkey.dae",Affine3h(Translation<halff,3>(evec3(-0.0_h,0.0_h,-4.1_h))).matrix(),HitMirror),
 	//std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
 	std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,-3.0_h,0.0_h))).matrix(),HitMirror)
 };
