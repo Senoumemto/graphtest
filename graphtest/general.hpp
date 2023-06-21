@@ -1,5 +1,8 @@
 #pragma once
 
+#define _SILENCE_NONFLOATING_COMPLEX_DEPRECATION_WARNING
+
+
 #include <iostream>
 #include <vector>
 #include <string>

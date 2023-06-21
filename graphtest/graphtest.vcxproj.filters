@@ -24,6 +24,9 @@
     <ClCompile Include="general.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="bmp.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sub.hpp">
@@ -37,6 +40,9 @@
     </ClInclude>
     <ClInclude Include="shaders.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="bmp.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
