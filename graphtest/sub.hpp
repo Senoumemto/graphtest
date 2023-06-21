@@ -7,6 +7,13 @@
 #include <assimp/postprocess.h>     // Post processing flags
 #include "bmp.h"
 
+#define CEREAL_THREAD_SAFE 1
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/list.hpp>
+
 using dmod = mod<double>;
 using dtri = tri<double>;
 using dvec3 = vec3<double>;

@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include <half.hpp>
+//#include <half.hpp>
 #include <array>
 #include <memory>
 #include <algorithm>
@@ -27,7 +27,7 @@
 
 using word = int16_t;
 using uword = uint16_t;
-using halff = half_float::half;
+using halff = double;
 using hmat4 = Eigen::Matrix4<halff>;
 using sindex = uint16_t;
 using exindex = uint32_t;
@@ -453,7 +453,7 @@ namespace toolkit {
 			std::deque<std::pair<ray,gindex>> Raytrace(const ray& r_grobal,const las* plas) {
 				using evec3 = Eigen::Vector3<halff>;
 				using evec4 = Eigen::Vector4<halff>;
-				using namespace half_float::literal;
+				//using namespace half_float::literal;
 
 				std::deque<std::pair<ray,gindex>> ret;
 				//blasごとに行う
@@ -462,8 +462,8 @@ namespace toolkit {
 					//変換をレイに適用する
 					ray r;
 					r.indexed(r_grobal.index());//同一のレイである
-					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0_h)).normalized(), false);
-					r.org() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.org().x(), r_grobal.org().y(), r_grobal.org().z(), 1.0_h)), true);
+					r.way() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.way().x(), r_grobal.way().y(), r_grobal.way().z(), 0.0)).normalized(), false);
+					r.org() = hvec3::Make(evec4(blasset.first * evec4(r_grobal.org().x(), r_grobal.org().y(), r_grobal.org().z(), 1.0)), true);
 
 
 					const sindex leafhead = (blasset.second->tree.size() + 1) / 2;//葉ノードの一番最初
@@ -577,10 +577,10 @@ namespace toolkit {
 			return anyhitsize;
 		}
 		void InstallGeneration(const rays& nowgen,exindex genhead, closesthits* closests_gen) {
-			using namespace half_float::literal;
+			//using namespace half_float::literal;
 			for (const ray& r : nowgen) {
 				closests_gen->at(r.index() - genhead).r = r;//レイを挿入
-				closests_gen->at(r.index() - genhead).vsTriRez = std::make_pair(hvec3({ 0.0_h, 0.0_h, std::numeric_limits<halff>::infinity() }),true);//無限遠で交差 何もない状態ではextendを受け入れる
+				closests_gen->at(r.index() - genhead).vsTriRez = std::make_pair(hvec3({ 0.0, 0.0, std::numeric_limits<halff>::infinity() }),true);//無限遠で交差 何もない状態ではextendを受け入れる
 			}
 		}
 
@@ -591,11 +591,11 @@ namespace toolkit {
 
 
 		void ApplyToRay(const hmat4& m, ray& r) {
-			using namespace half_float::literal;
+			//using namespace half_float::literal;
 			using evec4 = Eigen::Vector4<halff>;
 			//r.indexed(r.index());インデックスは未だ割り振られてない
-			r.way() = hvec3::Make(evec4(m * evec4(r.way().x(), r.way().y(), r.way().z(), 0.0_h)).normalized(), false);
-			r.org() = hvec3::Make(evec4(m * evec4(r.org().x(), r.org().y(), r.org().z(), 1.0_h)), true);
+			r.way() = hvec3::Make(evec4(m * evec4(r.way().x(), r.way().y(), r.way().z(), 0.0)).normalized(), false);
+			r.org() = hvec3::Make(evec4(m * evec4(r.org().x(), r.org().y(), r.org().z(), 1.0)), true);
 		}
 	public:
 		//一つのレイから作られた次世代 ヘッド付き
@@ -664,10 +664,10 @@ namespace toolkit {
 		}
 		void ClampHvec3(hvec3& ee,const halff& min=halff(0.0), const halff& max=halff(1.0)) {
 			using evec3 = Eigen::Vector3<halff>;
-			using namespace half_float::literal;
+			//using namespace half_float::literal;
 
 			for (int i = 0; i < 3; i++) {
-				if (ee.at(i) > 1.0_h) {
+				if (ee.at(i) > 1.0) {
 					//std::cout << ee.at(0).operator float() <<"\t"<< ee.at(1).operator float() <<"\t"<< ee.at(2).operator float() << std::endl;
 					int i = 0;
 				}
@@ -723,3 +723,75 @@ namespace toolkit {
 
 	};
 };
+
+template<size_t DIM>using uvec = Eigen::Vector<double, DIM>;
+using index = size_t;
+template<size_t SIZ>class arrow :public std::pair<uvec<SIZ>, uvec<SIZ>> {
+private:
+	using super = std::pair<uvec<SIZ>, uvec<SIZ>>;
+
+public:
+	//始点
+	decltype(arrow::first)& org() { return this->first; }
+	const decltype(arrow::first)& org()const { return this->first; }
+	//終点
+	decltype(arrow::second)& dir() { return this->second; }
+	const decltype(arrow::second)& dir() const { return this->second; }
+
+	//org dirの順で初期化
+	arrow() = default;
+	arrow(const decltype(arrow::first)& orign, const decltype(arrow::second)& direction) :super(orign, direction) {}
+	arrow(const arrow& val) = default;
+
+	arrow& operator=(const arrow& val) {
+		this->org() = val.org();
+		this->dir() = val.dir();
+
+		return *this;
+	}
+
+
+	template<size_t CASTSIZ> operator arrow<CASTSIZ>() const {
+
+		arrow<CASTSIZ> ret;
+		ret.org() = (decltype(ret.org()))(this->org());
+		ret.dir() = (decltype(ret.org()))(this->dir());
+
+		if constexpr (SIZ < CASTSIZ) {
+			//zero埋めする
+			for (index i = SIZ; i < CASTSIZ; i++) {
+				ret.org()(i) = 0.;
+				ret.dir()(i) = 0.;
+			}
+		}
+
+		return ret;
+	}
+
+	//シリアライズできるように
+	template<class Archive> void serialize(Archive& archive) const {
+		for (size_t d = 0; d < SIZ; d++) {
+			archive(this->org()[d]);
+		}
+		for (size_t d = 0; d < SIZ; d++) {
+			archive(this->dir()[d]);
+		}
+
+		//archive(this->org().x(), this->org().y(), this->org().z(),
+		//this->dir().x(), this->dir().y(), this->dir().z());
+	}
+	//シリアライズできるように
+	template<class Archive> void serialize(Archive& archive) {
+		for (size_t d = 0; d < SIZ; d++) {
+			archive(this->org()[d]);
+		}
+		for (size_t d = 0; d < SIZ; d++) {
+			archive(this->dir()[d]);
+		}
+		//archive(this->org().x(), this->org().y(), this->org().z(),
+		//this->dir().x(), this->dir().y(), this->dir().z());
+	}
+};
+using arrow2 = arrow<2>;
+using arrow3 = arrow<3>;
+using arrow4 = arrow<4>;

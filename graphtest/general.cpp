@@ -2,7 +2,7 @@
 
 using namespace std;
 using evec3 = Eigen::Vector3<halff>;
-using namespace half_float::literal;
+//using namespace half_float::literal;
 
 htri ToHaabb(const tri<double>& in) {
 	htri ret;
@@ -145,9 +145,9 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 
 halff camera::CalcDistFromFov(const halff& fov) {
 	//視野角の1/2がtan 1/dist
-	auto val = tan(fov / 2.0_h);
+	auto val = tan(fov / 2.0);
 
-	return 1.0_h / val;
+	return 1.0 / val;
 }
 
 aabb blas::MakeAABB(const hmod::iterator& b, const hmod::iterator& e) {
@@ -192,16 +192,16 @@ optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, con
 	//	cout << endl;
 	//}
 	//cout << endl;
-	using namespace half_float::literal;
+	//using namespace half_float::literal;
 	// 微小な定数
 	const halff kEpsilon = std::numeric_limits<halff>::epsilon();
 	const halff extendMargine = kEpsilon * extendSize;//拡張領域のサイズ
-	const halff margined1 = 1.0_h + extendMargine;//1.0より大きい最小の数
+	const halff margined1 = 1.0 + extendMargine;//1.0より大きい最小の数
 	const halff doublemargined1 = margined1 + extendMargine;//1.0より大きい最小の数より大きい最小の数
 	const halff minusEps = -extendMargine;
 
 	using evec3 = Eigen::Vector3<halff>;
-	using namespace half_float::literal;
+	//using namespace half_float::literal;
 
 	bool intoExtended = false;//ポリゴンにではなく拡張された領域に侵入した　プライオリティーが悪化
 	//演算系に
@@ -219,17 +219,17 @@ optional<vsTriangleResult> toolkit::narrowphaser::vsTriangle(const ray& ray, con
 
 	halff u = alpha.dot(r) * invdet;
 	if (u < minusEps || u>margined1)return nullopt;//uがエクステンドを含めた領域になければ
-	intoExtended |= u < 0.0_h || u > 1.0_h;//厳密な範囲から外れているか
+	intoExtended |= u < 0.0 || u > 1.0;//厳密な範囲から外れているか
 
 	evec3 beta = r.cross(e1);
 
 	halff v = eway.dot(beta) * invdet;
 	if (v < minusEps || u + v>doublemargined1)return nullopt;//vがエクステンドを含めた領域になければ
-	intoExtended |= v < 0.0_h || (u + v > 1.0_h);//厳密な範囲から外れているか
+	intoExtended |= v < 0.0 || (u + v > 1.0);//厳密な範囲から外れているか
 
 	halff t = e2.dot(beta) * invdet;
 	if (t < minusEps)return nullopt;//tがエクステンドを含めた領域になければ
-	intoExtended |= t < 0.0_h;
+	intoExtended |= t < 0.0;
 
 	return std::make_pair(hvec3({ u, v, t }),intoExtended);
 }
@@ -244,7 +244,7 @@ halff incidenceNormDot(const ray& ray, const htri& tri) {
 
 sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults& bprez, const halff param_ignoreNearHit,const halff param_ignoreParallelHit,const las* plas) {
 	sptr<narrowphaseResults> rez(new narrowphaseResults);
-	using namespace half_float::literal;
+	//using namespace half_float::literal;
 
 	for (const auto& bp : bprez) {
 		auto vsRez = vsTriangle(bp.first, plas->at(bp.second.blasId()).second->triangles.at(bp.second.triId()),this->param_extendSize);

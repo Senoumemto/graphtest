@@ -1,7 +1,7 @@
 #include "sub.hpp"
 
 using evec3 = Eigen::Vector3<halff>;
-using namespace half_float::literal;
+//using namespace half_float::literal;
 
 attribRez Attrib(const closesthit& att, const las* ptlas) {
 	attribRez rez;
@@ -13,7 +13,7 @@ attribRez Attrib(const closesthit& att, const las* ptlas) {
 
 	//‹¾–Ê”½ŽË
 	auto a = (-evec3(att.r.way().data())).dot(rez.norm);
-	evec3 refrectway = (2.0_h * ((-evec3(att.r.way().data())).dot(rez.norm)) * rez.norm + evec3(att.r.way().data())).normalized();
+	evec3 refrectway = (2.0 * ((-evec3(att.r.way().data())).dot(rez.norm)) * rez.norm + evec3(att.r.way().data())).normalized();
 	rez.refrect.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 	rez.refrect.org() = hvec3({ rez.hitpoint.x(),rez.hitpoint.y(),rez.hitpoint.z() });
 
@@ -28,7 +28,7 @@ attribRez Attrib(const closesthit& att, const tri<halff>& tri) {
 
 	//‹¾–Ê”½ŽË
 	auto a = (-evec3(att.r.way().data())).dot(rez.norm);
-	evec3 refrectway = (2.0_h * ((-evec3(att.r.way().data())).dot(rez.norm)) * rez.norm + evec3(att.r.way().data())).normalized();
+	evec3 refrectway = (2.0 * ((-evec3(att.r.way().data())).dot(rez.norm)) * rez.norm + evec3(att.r.way().data())).normalized();
 	rez.refrect.way() = hvec3({ refrectway.x(),refrectway.y(),refrectway.z() });
 	rez.refrect.org() = hvec3({ rez.hitpoint.x(),rez.hitpoint.y(),rez.hitpoint.z() });
 
@@ -63,18 +63,18 @@ void ModLoader(const std::string& path, dmod& ret) {
 
 hmat4 MakeTranslate(const hvec3& v) {
 	hmat4 ret;
-	ret <<	1.0_h, 0.0_h, 0.0_h, v.x(),
-			0.0_h, 1.0_h, 0.0_h, v.y(),
-			0.0_h, 0.0_h, 1.0_h, v.z(),
-			0.0_h, 0.0_h, 0.0_h, 1.0_h;
+	ret <<	1.0, 0.0, 0.0, v.x(),
+			0.0, 1.0, 0.0, v.y(),
+			0.0, 0.0, 1.0, v.z(),
+			0.0, 0.0, 0.0, 1.0;
 	return ret;
 }
 hmat4 MakeScale(const hvec3& v) {
 	hmat4 ret;
-	ret <<	v.x(), 0.0_h, 0.0_h, 0.0_h,
-			0.0_h, v.y(), 0.0_h, 0.0_h,
-			0.0_h, 0.0_h, v.z(), 0.0_h,
-			0.0_h, 0.0_h, 0.0_h, 1.0_h;
+	ret <<	v.x(), 0.0, 0.0, 0.0,
+			0.0, v.y(), 0.0, 0.0,
+			0.0, 0.0, v.z(), 0.0,
+			0.0, 0.0, 0.0, 1.0;
 	return ret;
 }
 hmat4 MakeScale(const halff& s) {
