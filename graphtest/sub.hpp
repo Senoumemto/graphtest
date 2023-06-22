@@ -7,12 +7,6 @@
 #include <assimp/postprocess.h>     // Post processing flags
 #include "bmp.h"
 
-#define CEREAL_THREAD_SAFE 1
-#include <cereal/cereal.hpp>
-#include <cereal/archives/json.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/list.hpp>
 
 using dmod = mod<double>;
 using dtri = tri<double>;
@@ -33,6 +27,25 @@ template<size_t res>void PrintBmp(const std::string& path,const bitmap<res>& dat
 			g->data[g->height-1-y][x].r = dat.at(y * res + x).at(0)*255;
 			g->data[g->height-1-y][x].g = dat.at(y * res + x).at(1)*255;
 			g->data[g->height-1-y][x].b = dat.at(y * res + x).at(2)*255;
+		}
+	WriteBmp(path.c_str(), g.get());
+}
+
+//サイズを指定して描画　クリップなどはなくただ頭から書き出すだけだからあまり使わないで
+template<size_t res>void PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT(const std::string& path, const bitmap<res>& dat,size_t width,size_t height) {
+	sptr<img> g(new img);
+	g->width = width;
+	g->height = height;
+
+	auto datite = dat.cbegin();
+	for (int y = 0; y < g->height; y++)
+		for (int x = 0; x < g->width; x++) {
+
+			g->data[g->height - 1 - y][x].r = (*datite).at(0) * 255;
+			g->data[g->height - 1 - y][x].g = (*datite).at(1) * 255;
+			g->data[g->height - 1 - y][x].b = (*datite).at(2) * 255;
+
+			datite++;
 		}
 	WriteBmp(path.c_str(), g.get());
 }

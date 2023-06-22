@@ -2,7 +2,7 @@
 
 #define _SILENCE_NONFLOATING_COMPLEX_DEPRECATION_WARNING
 
-
+#include<fstream>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -23,6 +23,14 @@
 #include<Eigen/Geometry>
 
 #include "int24.hpp"
+
+
+#define CEREAL_THREAD_SAFE 1
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/list.hpp>
 
 
 using word = int16_t;
@@ -59,6 +67,11 @@ template<typename T>class vec3 :public std::array<T, 3>{
 public:
 	vec3() :super() {}
 	vec3(const super& s) :super(s) {}
+	vec3(const T& x, const T& y, const T& z) {
+		this->at(0) = x;
+		this->at(1) = y;
+		this->at(2) = z;
+	}
 
 	T& x() { return this->at(0); }
 	T& y() { return this->at(1); }
@@ -166,6 +179,7 @@ class camera : public rays {
 public:
 	//1x1の解像度h*vのスクリーンを焦点からdistだけ離したカメラを作成する
 	camera(size_t h, size_t v, double dist, double asp = 1.0);
+	camera(size_t siz);
 
 	static halff CalcDistFromFov(const halff& fov);
 };
@@ -795,3 +809,34 @@ public:
 using arrow2 = arrow<2>;
 using arrow3 = arrow<3>;
 using arrow4 = arrow<4>;
+
+//projectorRefractionDicのヘッダ構造
+class projRefraDicHeader {
+public:
+	size_t horizontalRes;//水平分解能　ピクセル数
+	size_t verticalRes;//垂直分解能　ピクセル数
+	size_t rotationRes;//回転分解能t つまり一周に何回投影するか　つまり分散数
+
+
+	projRefraDicHeader(const size_t& hRes, const size_t& vRes, const size_t& rotRes) :
+		rotationRes(rotRes), verticalRes(vRes), horizontalRes(hRes) {}
+	projRefraDicHeader() {}
+
+	//シリアライズできるように
+	template<class Archive> void serialize(Archive& archive) const {
+		archive(this->horizontalRes, this->verticalRes, this->rotationRes);
+	}
+	template<class Archive> void serialize(Archive& archive) {
+		archive(this->horizontalRes, this->verticalRes, this->rotationRes);
+	}
+
+	//ヘッダファイルを保存
+	void SaveHeader(const std::string& path) const {
+		std::ofstream ofs(path + ".head");
+		cereal::BinaryOutputArchive o_archive(ofs);
+
+		o_archive((projRefraDicHeader&)(*this));
+
+		return;
+	}
+};

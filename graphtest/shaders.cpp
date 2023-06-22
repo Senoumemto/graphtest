@@ -37,7 +37,7 @@ payloadContent HitMirror(const closesthit& att, brunch& nextgenlocal, const las*
 	nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
 	isTerminate = false;
 
-	return payloadContent({ 0.5,0.5,0.5 });
+	return payloadContent(hvec3(0.5,0.5,0.5));
 }
 payloadContent HitRandom(const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	//using namespace half_float::literal;
@@ -49,7 +49,7 @@ payloadContent HitRandom(const closesthit& att, brunch& nextgenlocal, const las*
 	nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
 	isTerminate = false;
 
-	return payloadContent({ 0.5,0.5,0.5 });
+	return payloadContent(hvec3(0.5,0.5,0.5));
 }
 payloadContent HitLight(const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	//using namespace half_float::literal;
@@ -61,7 +61,7 @@ payloadContent HitLight(const closesthit& att, brunch& nextgenlocal, const las* 
 
 	return payloadContent({1.0,1.0,1.0}, { std::abs<halff>(attrib.norm.x()),std::abs<halff>(attrib.norm.y()),std::abs<halff>(attrib.norm.z()) });
 }
-payloadContent HitColor(const closesthit& att, brunch& nextgenlocal,const las* plas, bool& isTerminate) {
+payloadContent HitNormColor(const closesthit& att, brunch& nextgenlocal,const las* plas, bool& isTerminate) {
 	//using namespace half_float::literal;
 	using evec3 = Eigen::Vector3<halff>;
 
@@ -71,7 +71,7 @@ payloadContent HitColor(const closesthit& att, brunch& nextgenlocal,const las* p
 	nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
 	isTerminate = false;
 
-	return payloadContent({std::abs<halff>(attrib.norm.x()),std::abs<halff>(attrib.norm.y()) ,std::abs<halff>(attrib.norm.z()) });
+	return payloadContent(hvec3(std::abs<halff>(attrib.norm.x()),std::abs<halff>(attrib.norm.y()) ,std::abs<halff>(attrib.norm.z())));
 }
 payloadContent HitLightNorm(const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	//using namespace half_float::literal;
@@ -82,4 +82,33 @@ payloadContent HitLightNorm(const closesthit& att, brunch& nextgenlocal, const l
 	isTerminate = false;
 
 	return payloadContent({ 1.0,1.0,1.0 }, { -attrib.norm.x(),attrib.norm.y(),attrib.norm.z() });
+}
+
+template<size_t RAYNUM_LIMIT_ALL, size_t RAYNUM_LIMIT_BRUNCH,size_t ATTRIBUTE_SIZE>typename toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader GetColorShader(const hvec3 color) {
+	typename toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader func = [color](const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
+		using evec3 = Eigen::Vector3<halff>;
+
+		auto attrib = Attrib(att, (const las*)plas);
+		//nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
+		isTerminate = true;
+		
+		evec3 ray(0, 0, -1);
+		evec3 norm(attrib.norm.x(), attrib.norm.y(), attrib.norm.z());
+		double rr=fabs(ray.dot(norm));
+		return payloadContent({ 1.0,1.0,1.0 }, { color.x() * rr,color.y() *rr,color.z() *rr });
+	};
+
+	return func;
+}
+payloadContent HitColor(const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
+	//using namespace half_float::literal;
+	using evec3 = Eigen::Vector3<halff>;
+
+	auto attrib = Attrib(att, (const las*)plas);
+
+	//”½ŽËŒõ‚ð“o˜^
+	nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
+	isTerminate = false;
+
+	return payloadContent(hvec3(std::abs<halff>(attrib.norm.x()), std::abs<halff>(attrib.norm.y()), std::abs<halff>(attrib.norm.z())));
 }

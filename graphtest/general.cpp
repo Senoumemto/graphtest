@@ -142,6 +142,9 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 			this->push_back(ray({ hvec3({halff(0),halff(0),halff(0)}),hvec3({halff(scnormed.x()),halff(scnormed.y()),halff(scnormed.z())}) }));
 		}
 }
+camera::camera(size_t siz) {
+	this->resize(siz);
+}
 
 halff camera::CalcDistFromFov(const halff& fov) {
 	//視野角の1/2がtan 1/dist
