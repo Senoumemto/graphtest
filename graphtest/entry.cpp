@@ -13,7 +13,7 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 1024;
+constexpr size_t CAMERA_RESOLUTION = 64;
 const halff CAMERA_FOV = halff(60. * std::numbers::pi / 180.0);
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//ˆê–{‚ÌƒŒƒC‚©‚ç¶‚¶‚é•ªŠò‚ÌÅ‘å’l
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);//ˆê¢‘ã‚ÌƒŒƒC‚ÌÅ‘å”
@@ -36,8 +36,8 @@ const halff AABB_TIMES_MARGINE = 0.0;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒuƒ
 
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader>> model_gen = {
-	std::make_tuple("../monkey.dae",DiagonalMatrix<halff,4>(.3,.3,.3,1.)*Affine3h(Translation<halff,3>(evec3(-0.0,0.0,0.0))).matrix(),GetColorShader<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, ATTRIBUTE_SIZE>(hvec3(1., 0., 0.))),
-	//std::make_tuple("../cube.dae",Affine3h(Translation<halff,3>(evec3(0.0_h,0.0_h,-2.0_h))).matrix(),HitMirror),
+	//std::make_tuple("../monkey.dae",DiagonalMatrix<halff,4>(.3,.3,.3,1.)*Affine3h(Translation<halff,3>(evec3(-0.0,0.0,0.0))).matrix(),GetColorShader<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, ATTRIBUTE_SIZE>(hvec3(1., 0., 0.))),
+	std::make_tuple("../cube.dae",DiagonalMatrix<halff,4>(.1,.1,.1,1.)* Affine3h(AngleAxisd(std::numbers::pi / 4.,uvec<3>::UnitY())*AngleAxisd(std::numbers::pi/4.,uvec<3>::UnitZ())).matrix(),HitNormColor)//,
 	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0,-3.0,0.0))).matrix(),HitMirror)
 };
 /*
@@ -106,7 +106,7 @@ int main() {
 	auto preRez = PrePhase();//ƒAƒEƒ^[‚ªƒf[ƒ^‚ğ—pˆÓ‚·‚é(blas‚Æcam)
 
 	//‚Â‚¬‚Éƒwƒbƒ_‚ğ“Ç‚İ‚Ş
-	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\resultsX\HexBall\projRefRayMap)";
+	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\resultsX\SimVis\projRefRayMap)";
 	projRefraDicHeader dicheader;
 	{
 		ifstream headerIfs(dicheaderPrefix+".head", std::ios::binary);
@@ -115,7 +115,7 @@ int main() {
 	}
 
 	//Œ‹‰Ê‚ÌƒtƒŒ[ƒ€‚Í‚±‚±‚É•Û‘¶‚·‚é
-	const std::string frameSavePrefix = R"(C:\local\user\lensball\lensball\resultsX\projectorFrames\frame)";
+	const std::string frameSavePrefix = R"(C:\local\user\lensball\lensball\resultsX\framesX64\frame)";
 
 	constexpr size_t rayTraceThreadNum = 4;
 	std::array<uptr<std::thread>, rayTraceThreadNum> rayTraThreads;
@@ -137,13 +137,19 @@ int main() {
 		cout << dicheader.horizontalRes  << endl;
 		auto raylistite = raylist.cbegin();
 		sptr<camera> cam = make_shared<camera>(dicheader.horizontalRes * dicheader.verticalRes);//s‚²‚Æ‚Éƒf[ƒ^‚ª“ü‚Á‚Ä‚¢‚­‚Ì‚É‹C‚ğ‚Â‚¯‚Ä
-		for (size_t hd = 0; hd < dicheader.horizontalRes; hd++)
 			for (size_t vd = 0; vd < dicheader.verticalRes; vd++) {
-				auto& target=cam->at(hd + vd * dicheader.horizontalRes);
-				target.org() = hvec3((*raylistite).org().x(), (*raylistite).org().y(), (*raylistite).org().z());
-				target.way() = hvec3(-(*raylistite).dir().x(), -(*raylistite).dir().y(), -(*raylistite).dir().z());
+				for (size_t hd = 0; hd < dicheader.horizontalRes; hd++) {
+					//ƒ[ƒƒxƒNƒgƒ‹‚ª—ˆ‚é‚±‚Æ‚à‚ ‚é
+					if ((*raylistite).dir() == uvec<3>::Zero()) {
+						//—ˆ‚½ê‡•]‰¿‚·‚é•K—v‚ª‚È‚¢‚Á‚Ä‚±‚Æ
+					}
 
-				raylistite++;
+					auto& target = cam->at(hd + vd * dicheader.horizontalRes);
+					target.org() = hvec3((*raylistite).org().x(), (*raylistite).org().y(), (*raylistite).org().z());
+					target.way() = hvec3(-(*raylistite).dir().x(), -(*raylistite).dir().y(), -(*raylistite).dir().z());
+
+					raylistite++;
+				}
 			}
 
 		RegRays(cam, machines.get());

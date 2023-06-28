@@ -25,7 +25,7 @@ payloadContent MissShader(const closesthit& str, brunch& nextgenlocal, const las
 
 	//doter = 0.0_h;
 	halff amb = 0.05;// +0.05_h;//ŠÂ‹«Œõ
-	return payloadContent({ 1.0,1.0 ,1.0 }, { doter + amb,doter + amb,0.0 });
+	return payloadContent({ 1.0,1.0 ,1.0 }, { 0.,0.,0. });
 }
 payloadContent HitMirror(const closesthit& att, brunch& nextgenlocal, const las* plas,bool& isTerminate) {
 	//using namespace half_float::literal;
@@ -71,7 +71,7 @@ payloadContent HitNormColor(const closesthit& att, brunch& nextgenlocal,const la
 	nextgenlocal.push_head(parentedRay({ att.r.index(), attrib.refrect }));
 	isTerminate = false;
 
-	return payloadContent(hvec3(std::abs<halff>(attrib.norm.x()),std::abs<halff>(attrib.norm.y()) ,std::abs<halff>(attrib.norm.z())));
+	return payloadContent({ {1.0,1.0,1.0},hvec3(std::abs<halff>(attrib.norm.x()),std::abs<halff>(attrib.norm.y()) ,std::abs<halff>(attrib.norm.z())) });
 }
 payloadContent HitLightNorm(const closesthit& att, brunch& nextgenlocal, const las* plas, bool& isTerminate) {
 	//using namespace half_float::literal;
