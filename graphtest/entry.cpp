@@ -13,7 +13,7 @@ using Affine3h = Eigen::Transform<halff, 3, 2>;
 constexpr size_t MAX_GENERATIONS = 20;
 
 constexpr size_t CORE_NUM = 1;
-constexpr size_t CAMERA_RESOLUTION = 64;
+constexpr size_t CAMERA_RESOLUTION = 768;
 const halff CAMERA_FOV = halff(60. * std::numbers::pi / 180.0);
 const extern sindex RAYNUM_LIMIT_BRUNCH = 1;//ˆê–{‚ÌƒŒƒC‚©‚ç¶‚¶‚é•ªŠò‚ÌÅ‘å’l
 constexpr exindex RAYNUM_LIMIT_GENERATION = (CAMERA_RESOLUTION * CAMERA_RESOLUTION);//ˆê¢‘ã‚ÌƒŒƒC‚ÌÅ‘å”
@@ -27,7 +27,7 @@ constexpr size_t TRIANGLES_NUM_LIMIT = 2048*32;//triangle‚ÌÅ‘å” ‚±‚ê‚¾‚¯‚Ìtria
 
 
 const halff IGNORE_NEARHIT = 0.01;//ƒŒƒC‚Ì“–‚½‚è”»’è‚Ít=‚±‚êˆÈ~‚Å”­¶‚·‚é@“§‰ßŒõ‚ğ’Ê‰ß‚³‚¹‚é‚Æ‚«‚É•K—v
-const halff IGNORE_PARALLELHIT = 0.0;//norm dot direction‚ª‚±‚êˆÈ‰º‚Ì‚Æ‚«ƒiƒ[ƒtƒF[ƒY‚ª”­¶@ƒJƒŠƒ“ƒO‚Æ•ÀsŒõ‚Ì–³‹‚ª”­¶‚·‚é
+const halff IGNORE_PARALLELHIT = cos(89.99/180.*std::numbers::pi);//norm dot direction‚ª‚±‚êˆÈ‰º‚Ì‚Æ‚«ƒiƒ[ƒtƒF[ƒY‚ª”­¶@ƒJƒŠƒ“ƒO‚Æ•ÀsŒõ‚Ì–³‹‚ª”­¶‚·‚é
 
 const halff	TRIANGLE_EXTEND_SIZE = 32.0;//ƒ|ƒŠƒSƒ“‚ÌƒTƒCƒY‚ğƒCƒvƒVƒƒ“‚Ì‚±‚ê”{‚¾‚¯Šg’£‚·‚é ‘å‚«‚¢‚Ù‚Çƒiƒ[ƒtƒF[ƒY‚ªŠÃ‚­‚È‚é
 const halff AABB_TIMES_MARGINE = 0.0;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒuƒ[ƒhƒtƒF[ƒY‚ªŠÃ‚­‚È‚é
@@ -37,7 +37,7 @@ const halff AABB_TIMES_MARGINE = 0.0;//vsAABB‚ÌŒğ·ŠÔ‚Ìƒ}[ƒWƒ“@‘å‚«‚¢‚Ù‚Çƒuƒ
 #include "shaders.cpp"
 const std::vector<std::tuple<string, hmat4,toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH,toolkit::attributeFramework<ATTRIBUTE_SIZE>>::shader>> model_gen = {
 	//std::make_tuple("../monkey.dae",DiagonalMatrix<halff,4>(.3,.3,.3,1.)*Affine3h(Translation<halff,3>(evec3(-0.0,0.0,0.0))).matrix(),GetColorShader<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, ATTRIBUTE_SIZE>(hvec3(1., 0., 0.))),
-	std::make_tuple("../cube.dae",DiagonalMatrix<halff,4>(.1,.1,.1,1.)* Affine3h(AngleAxisd(std::numbers::pi / 4.,uvec<3>::UnitY())*AngleAxisd(std::numbers::pi/4.,uvec<3>::UnitZ())).matrix(),HitNormColor)//,
+	std::make_tuple("../minicube.dae",Eigen::Matrix4d::Identity(),HitNormColor)//,
 	//std::make_tuple("../wave.dae",Affine3h(Translation<halff,3>(evec3(0.0,-3.0,0.0))).matrix(),HitMirror)
 };
 /*
@@ -103,10 +103,9 @@ void RegRays(const sptr<camera>& cam, _machines* machines) {
 }
 
 int main() {
-	auto preRez = PrePhase();//ƒAƒEƒ^[‚ªƒf[ƒ^‚ğ—pˆÓ‚·‚é(blas‚Æcam)
 
 	//‚Â‚¬‚Éƒwƒbƒ_‚ğ“Ç‚İ‚Ş
-	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\resultsX\SimVis\projRefRayMap)";
+	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\resultsX\dicX768\projRefRayMap)";
 	projRefraDicHeader dicheader;
 	{
 		ifstream headerIfs(dicheaderPrefix+".head", std::ios::binary);
@@ -117,14 +116,10 @@ int main() {
 	//Œ‹‰Ê‚ÌƒtƒŒ[ƒ€‚Í‚±‚±‚É•Û‘¶‚·‚é
 	const std::string frameSavePrefix = R"(C:\local\user\lensball\lensball\resultsX\framesX64\frame)";
 
-	constexpr size_t rayTraceThreadNum = 4;
+	constexpr size_t rayTraceThreadNum = 18;
 	std::array<uptr<std::thread>, rayTraceThreadNum> rayTraThreads;
 	std::array<bool, rayTraceThreadNum> rayTraIsFin;
 	const auto rayTracePipeline = [&](const size_t sceneid, decltype(rayTraIsFin)::iterator isfin) {
-		//ƒ}ƒVƒ“‚ğ¶¬
-		uptr<_machines> machines = make_unique<_machines>();
-		RegObjs(preRez.objs, machines.get());//ƒAƒEƒ^[‚ªƒf[ƒ^‚ğƒOƒ‰ƒ{‚É“o˜^(rooter‚Öcam->0 gen rays‚ªAbroadphaser‚Ænarrowphaser‚Öblas-es->tlas‚ª)
-
 		//ƒV[ƒ“‚²‚Æ‚ÉƒŒƒCƒgƒŒ[ƒVƒ“ƒO‚ğs‚¤•K—v‚ª‚ ‚é@‚Â‚Ü‚èƒŒƒCƒŠƒXƒg‚ªè‚É“ü‚é
 		std::list<arrow3> raylist;
 		{
@@ -134,71 +129,73 @@ int main() {
 		}
 
 		//‚±‚ê‚ğƒJƒƒ‰‚É‚·‚é
-		cout << dicheader.horizontalRes  << endl;
 		auto raylistite = raylist.cbegin();
-		sptr<camera> cam = make_shared<camera>(dicheader.horizontalRes * dicheader.verticalRes);//s‚²‚Æ‚Éƒf[ƒ^‚ª“ü‚Á‚Ä‚¢‚­‚Ì‚É‹C‚ğ‚Â‚¯‚Ä
-			for (size_t vd = 0; vd < dicheader.verticalRes; vd++) {
-				for (size_t hd = 0; hd < dicheader.horizontalRes; hd++) {
-					//ƒ[ƒƒxƒNƒgƒ‹‚ª—ˆ‚é‚±‚Æ‚à‚ ‚é
-					if ((*raylistite).dir() == uvec<3>::Zero()) {
-						//—ˆ‚½ê‡•]‰¿‚·‚é•K—v‚ª‚È‚¢‚Á‚Ä‚±‚Æ
-					}
-
-					auto& target = cam->at(hd + vd * dicheader.horizontalRes);
-					target.org() = hvec3((*raylistite).org().x(), (*raylistite).org().y(), (*raylistite).org().z());
-					target.way() = hvec3(-(*raylistite).dir().x(), -(*raylistite).dir().y(), -(*raylistite).dir().z());
-
-					raylistite++;
+		sptr<camera> cam = make_shared<camera>();//s‚²‚Æ‚Éƒf[ƒ^‚ª“ü‚Á‚Ä‚¢‚­‚Ì‚É‹C‚ğ‚Â‚¯‚Ä
+		std::vector<std::pair<size_t, size_t>> pixPoses;
+		exindex rayIdCount = 0;
+		for (size_t vd = 0; vd < dicheader.verticalRes; vd++) {
+			for (size_t hd = 0; hd < dicheader.horizontalRes; hd++, raylistite++) {
+				//ƒ[ƒƒxƒNƒgƒ‹‚ª—ˆ‚é‚±‚Æ‚à‚ ‚é
+				if ((*raylistite).dir() == uvec<3>::Zero()) {
+					//—ˆ‚½ê‡•]‰¿‚·‚é•K—v‚ª‚È‚¢‚Á‚Ä‚±‚Æ
+					continue;
 				}
+
+				cam->push_back(ray());
+				pixPoses.push_back(make_pair(hd, vd));
+
+				auto& target = cam->back();
+				target.org() = hvec3((*raylistite).org().x(), (*raylistite).org().y(), (*raylistite).org().z());
+				target.way() = hvec3(-(*raylistite).dir().x(), -(*raylistite).dir().y(), -(*raylistite).dir().z());
+				target.indexed(rayIdCount++);//index‚ÍÀ•W‚ğŒ³‚ÉŒˆ‚ß‚ê‚»‚¤
 			}
-
-		RegRays(cam, machines.get());
-		machines->materializer.mats.miss = MissShader;
-
-	
-
-		for (size_t gen = 0; gen < MAX_GENERATIONS; gen++) {
-			exindex genhead;//‘S¢‘ãid‚Æ¢‘ã“àid‚ÌƒIƒtƒZƒbƒg
-			exindex gensize;//¡¢‘ã‚ÌƒTƒCƒY
-			auto generation = machines->generator.GetGeneration(genhead, machines->memory.GetAllowsAllgen(), gensize);//rooter‚©‚ç¢‘ã‚ğó‚¯æ‚é
-
-			machines->obstructer.InstallGeneration(generation, genhead, machines->memory.GetClosesthitsGen());//anyhit‚É¡¢‘ã‚Ìî•ñ‚ğ’Ê’m‚µ‚Ä‚ ‚°‚é
-			cout << "Broadphase began" << endl;
-			auto bpRez = machines->broadphaser.Broadphase(generation, machines->memory.GetLAS());//ƒuƒ[ƒhƒtƒF[ƒY‚ğs‚¤@‹U—z«‚ğ‚Âray,g-indexŒ‹‰Ê‚ğ“¾‚é
-
-			cout << "narrowphase began" << endl;
-			auto npRez = machines->narrowphaser.RayTrace(*bpRez, IGNORE_NEARHIT, IGNORE_PARALLELHIT, machines->memory.GetLAS());//ƒuƒ[ƒhƒtƒF[ƒYŒ‹‰Ê‚©‚çƒiƒ[ƒtƒF[ƒY‚ğs‚¤
-
-			cout << "Obstructer phase began" << endl;
-			exindex anyhitsize = machines->obstructer.Anyhit(*npRez, genhead, machines->memory.GetClosesthitsGen());//ƒŒƒC‚ÌÕ•Á‚ğŒvZ‚µclosest-hit‚ğŒvZ‚·‚é@‚±‚±‚Å‚Í¢‘ã“àid‚ğg‚Á‚Ä‚¢‚é‚Ì‚Å’ˆÓ
-
-			cout << "Materializer began" << endl;
-			parentedRays nextgen;
-			machines->materializer.Shading(*machines->memory.GetClosesthitsGen(), nextgen, gen + 1 < MAX_GENERATIONS, machines->memory.GetPayloadsAllgen(), machines->memory.GetTerminatesGen(), gensize, machines->memory.GetLAS(), machines->memory.GetAttributes());//ƒŒƒC‚Ì•\–Ê‚Å‚ÌU‚é•‘‚¢‚ğŒvZ next gen rays‚ğ¶¬
-			machines->generator.RegisterRays(nextgen, machines->memory.GetAllowsAllgen(), machines->memory.GetPayloadsAllgen());
-
-			cout << "\t" << gen << "th generation report\n"
-				<< "\t\tgensize= " << generation.size() << "\n"
-				<< "\t\tbroadphase hits num: " << bpRez->size() << "\n"
-				<< "\t\tnarrowphase hits num: " << npRez->size() << "\n"
-				<< "\t\tclosests num: " << anyhitsize << "\n"
-				<< "\t\tnext generation size: " << nextgen.size() << "\n\n"
-				<< "\t\tterminates size: " << machines->memory.GetTerminatesGen()->head << "\n";
-
-			//Ÿ¢‘ãƒŒƒC‚ª”­¶‚µ‚È‚¢‚È‚çI—¹
-			if (nextgen.empty())break;
 		}
+
+		//ƒ‚ƒfƒ‹‚ğ—pˆÓ
+		size_t trianglesnum_sum = 0;
+		std::list<sptr<blas>> lases;
+		uptr<las> world = make_unique<las>();
+		for (const auto& p : model_gen) {
+			dmod tempmod;
+			ModLoader(std::get<0>(p), tempmod);
+			trianglesnum_sum += tempmod.size();
+			sptr<blas> obj(new blas(tempmod));
+			world->push_back(make_pair(std::get<1>(p), obj));
+		}
+		if (trianglesnum_sum > TRIANGLES_NUM_LIMIT)throw std::out_of_range("Triangle included LAS are more than TRIANGLES_NUM_LIMIT");
+
+		//ƒuƒ[ƒhƒtƒF[ƒY
+		toolkit::broadphaser<1> bper(AABB_TIMES_MARGINE);
+		const auto bpResult = bper.Broadphase(*cam, world.get());
+		//ƒiƒ[ƒtƒF[ƒY
+		toolkit::narrowphaser nper(TRIANGLE_EXTEND_SIZE);
+		const auto npResult = nper.RayTrace(*bpResult, IGNORE_NEARHIT, IGNORE_PARALLELHIT, world.get());
+
+		toolkit::obstructer<RAYNUM_LIMIT_GENERATION> obser;
+		std::unordered_map<exindex,closesthit> closests;
+		obser.Anyhit(*npResult, 0, closests);
+
+		sptr<bitmap<768>> colors = make_shared<bitmap<768>>();
+		for (auto& c : *colors)
+			c = hvec3({ 0.,0.,0. });
+		for (const auto& i : closests) {
+			const auto thispos = pixPoses.at(i.first);
+			colors->at(thispos.first + thispos.second * 768) = { -i.second.r.way()[0],-i.second.r.way()[1],-i.second.r.way()[2] };
+		}
+
+		PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT<768>(frameSavePrefix+to_string(sceneid)+".bmp", *colors,dicheader.horizontalRes,dicheader.verticalRes);
 
 		//Œ‹‰Ê‚ğì¬
 		cout << "developping began" << endl;
-		auto pixels = machines->developer.Develop(machines->memory.GetPayloadsAllgen(), machines->memory.GetTerminatesGen());//ƒŒƒCƒqƒGƒ‰ƒ‹ƒL[‚©‚çŒ»‘œ‚·‚é
+		//dever.Develop()
+		//auto pixels = machines->developer.Develop(machines->memory.GetPayloadsAllgen(), machines->memory.GetTerminatesGen());//ƒŒƒCƒqƒGƒ‰ƒ‹ƒL[‚©‚çŒ»‘œ‚·‚é
 
-		cout << "It is going to be completly soon..." << endl;
-		PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT<CAMERA_RESOLUTION>(frameSavePrefix+to_string(sceneid)+".bmp", *pixels,dicheader.horizontalRes,dicheader.verticalRes);
+		//cout << "It is going to be completly soon..." << endl;
+		//PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT<CAMERA_RESOLUTION>(frameSavePrefix+to_string(sceneid)+".bmp", *pixels,dicheader.horizontalRes,dicheader.verticalRes);
 
 		*isfin = true;
 	};
-
+	//rayTracePipeline(0, rayTraIsFin.begin());
 
 	//•¡”ƒXƒŒƒbƒh‚É‰ñ“]Šp“x‚ğ•Ï‚¦‚È‚ª‚çŠ„‚è“–‚Ä‚é
 	for (size_t rdgen = 0; rdgen < dicheader.rotationRes; rdgen++) {

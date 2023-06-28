@@ -145,6 +145,8 @@ camera::camera(size_t h, size_t v, double dist,double asp) {
 camera::camera(size_t siz) {
 	this->resize(siz);
 }
+camera::camera() {
+}
 
 halff camera::CalcDistFromFov(const halff& fov) {
 	//視野角の1/2がtan 1/dist
@@ -256,7 +258,8 @@ sptr<narrowphaseResults> toolkit::narrowphaser::RayTrace(const broadphaseResults
 		//ヒットしたら
 		if (vsRez.has_value()) {
 			if (vsRez.value().uvt().at(2) > param_ignoreNearHit) {//無視値より大きい
-				if (inciDot < param_ignoreParallelHit)//コサイン
+				//cout << inciDot << endl;
+				if (fabs(inciDot) >= param_ignoreParallelHit)//コサイン
 					rez->push_back(narrowphaseResultElement(bp,vsRez.value()));
 				else//かくどがちいさい=並行なら
 					;// cout << "ignored with parallel" << endl;

@@ -112,6 +112,26 @@ using htri = tri<halff>;
 using dmod = mod<double>;
 using hmod = mod<halff>;
 
+
+//std::pairをハッシュする
+struct HashPair {
+
+	static size_t m_hash_pair_random;
+
+	template<class T1, class T2>
+	size_t operator()(const std::pair<T1, T2>& p) const {
+
+		auto hash1 = std::hash<T1>{}(p.first);
+		auto hash2 = std::hash<T2>{}(p.second);
+
+		size_t seed = 0;
+		seed ^= hash1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		seed ^= hash2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		seed ^= 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		return seed;
+	}
+};
+
 class aabb :public std::pair<hvec3, hvec3> {
 	using super = std::pair<hvec3, hvec3>;
 public:
@@ -180,6 +200,7 @@ public:
 	//1x1の解像度h*vのスクリーンを焦点からdistだけ離したカメラを作成する
 	camera(size_t h, size_t v, double dist, double asp = 1.0);
 	camera(size_t siz);
+	camera();
 
 	static halff CalcDistFromFov(const halff& fov);
 };
@@ -567,19 +588,21 @@ namespace toolkit {
 
 	template<exindex cachesize>class obstructer {
 	protected:
-		closesthits* closests_gen;
 	public:
-		exindex Anyhit(const narrowphaseResults& nprez,exindex genhead, closesthits* closests_gen) {
-			exindex anyhitsize = 0;
+		exindex Anyhit(const narrowphaseResults& nprez,exindex genhead, std::unordered_map<exindex, closesthit>& closests_gen) {
 			for (const auto& rez : nprez) {
 				//closestがextendのとき、挑戦者がnot extendかtがより大きければ更新
 				//closestがnot extendのとき、挑戦者がnot extendでかつtがより大きければ
-				bool tLarger = rez.vsTriRez.uvt().at(2) < closests_gen->at(rez.r.index() - genhead).vsTriRez.uvt().at(2);//挑戦者のtが大きい
+				auto itex = closests_gen.find(rez.r.index());//検索する
+				if (itex == closests_gen.cend()) {
+					closests_gen[rez.r.index()] = rez;
+				}
+				else {
+					bool tLarger = rez.vsTriRez.uvt().at(2) < itex->second.vsTriRez.uvt().at(2);//挑戦者のtが大きい
 
-
-				if (closests_gen->at(rez.r.index() - genhead).vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() || tLarger) || !closests_gen->at(rez.r.index() - genhead).vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() && tLarger)) {//上の条件で再登録
-					closests_gen->at(rez.r.index() - genhead) = rez;
-					anyhitsize++;
+					if (itex->second.vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() || tLarger) || !itex->second.vsTriRez.intoExtend() && (!rez.vsTriRez.intoExtend() && tLarger)) {//上の条件で再登録
+						itex->second = rez;
+					}
 				}
 			}
 
@@ -588,7 +611,7 @@ namespace toolkit {
 			//		std::cout << "index " << c.r.index() << std::endl;
 			//}
 
-			return anyhitsize;
+			return 1;
 		}
 		void InstallGeneration(const rays& nowgen,exindex genhead, closesthits* closests_gen) {
 			//using namespace half_float::literal;
