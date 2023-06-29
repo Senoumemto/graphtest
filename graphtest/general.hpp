@@ -316,7 +316,7 @@ template<typename paytype>using payed_ray = std::pair<ray, paytype>;
 template<typename paytype>using payed_rays = std::vector<payed_ray<paytype>>;
 
 //bitmapを表す
-template<size_t res>struct bitmap :public std::array<hvec3, res* res>{};
+using bitmapx = std::vector<hvec3>;
 
 
 //グラボの機能を実装
@@ -689,76 +689,6 @@ namespace toolkit {
 		materializer(){}
 	};
 
-	template<typename paytype,size_t res> class developer {
-		//eeにerを掛け加える
-		void MulHvec(hvec3& ee,const hvec3& er) {
-			for (int i = 0; i < 3; i++)
-				ee.at(i) *= er.at(i);
-		}
-		void AddHvec(hvec3& ee, const hvec3& er) {
-			for (int i = 0; i < 3; i++)
-				ee.at(i) += er.at(i);
-		}
-		void ClampHvec3(hvec3& ee,const halff& min=halff(0.0), const halff& max=halff(1.0)) {
-			using evec3 = Eigen::Vector3<halff>;
-			//using namespace half_float::literal;
-
-			for (int i = 0; i < 3; i++) {
-				if (ee.at(i) > 1.0) {
-					//std::cout << ee.at(0).operator float() <<"\t"<< ee.at(1).operator float() <<"\t"<< ee.at(2).operator float() << std::endl;
-					int i = 0;
-				}
-				ee.at(i) = std::clamp(ee.at(i), min, max);
-			}
-		}
-	public:
-		sptr<bitmap<res>> Develop(payloads* pays_allgen,exindicesWithHead* terminates) {
-
-			
-
-			sptr<bitmap<res>> ret(new bitmap<res>());
-			int hei = 0;
-			for (exindex tnowi : *terminates) {
-				bool debugt = true;
-				payload tnow = pays_allgen->at(tnowi);//現在のノード　終端から始める
-				hvec3 color = hvec3::Zero();
-
-				while (1) {
-
-					//処理を行う
-					MulHvec(color, tnow.GetContent().scale());
-					AddHvec(color, tnow.GetContent().translate());
-
-					//std::cout <<debugt<<"\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
-					//debugt = false;
-					//int xx = 61, yy = 50;
-					//int resa = 128;
-					//if (tnowi == xx + (resa - 1 - yy) * resa) {
-					//	//std::cout << debugt << "\t" << tnowi << "\t" << color.at(0).operator float() << "\t" << color.at(1).operator float() << "\t" << color.at(2).operator float() << std::endl;
-					//	int aa = 0;
-					//}
-
-					//ここが終端なら
-					if (tnow.parent == std::numeric_limits<exindex>::max()) {
-						ClampHvec3(color);//色領域へ丸める
-						ret->at(tnowi) = color;
-
-						break;
-					}
-					tnowi = tnow.parent;
-					tnow = pays_allgen->at(tnowi);//親に移動する
-				}
-				
-			}
-
-			//for (exindex i = 0; i < res * res;i++) {
-			//	ret->at(i) = pays_allgen->at(i).GetContent();
-			//}
-
-			return ret;
-		}
-
-	};
 };
 
 template<size_t DIM>using uvec = Eigen::Vector<double, DIM>;

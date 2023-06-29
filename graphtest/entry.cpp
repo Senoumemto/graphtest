@@ -45,19 +45,6 @@ tlasをアウターからなんとか構築し　それにレイトレース処理を行うことでrayHierarchy
 アウターからコマンドを使ってカメラとblasとそれぞれの変換を送信　tlasを構成する
 */
 
-//装置たち
-struct _machines {
-	toolkit::memoryCollection<payload, RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_GENERATION, RAYNUM_LIMIT_TERMINATES, ATTRIBUTE_SIZE, BLASNUM_LIMIT, TRIANGLES_NUM_LIMIT> memory;
-
-	toolkit::generator<RAYNUM_LIMIT_ALL, payload> generator;
-	toolkit::broadphaser<CORE_NUM> broadphaser;
-	toolkit::narrowphaser narrowphaser;
-	toolkit::obstructer<RAYNUM_LIMIT_GENERATION> obstructer;
-	toolkit::materializer<RAYNUM_LIMIT_ALL, RAYNUM_LIMIT_BRUNCH, toolkit::attributeFramework<ATTRIBUTE_SIZE>> materializer;
-	toolkit::developer<payload, CAMERA_RESOLUTION> developer;
-
-	_machines() :broadphaser(AABB_TIMES_MARGINE), narrowphaser(TRIANGLE_EXTEND_SIZE) {}
-};
 
 //手順0(pre-phase)  アウターで行われるデータ構造の準備
 struct prephaseRez {
@@ -88,24 +75,10 @@ prephaseRez PrePhase() {
 	return rez;
 }
 
-//手順1(upload-phase) blasやカメラをグラボに登録しrooterやbroad/narrow-phaserに登録(グラボ内部ではtlasと0-gen レイが作製される)
-struct regphaseRez {
-	sptr<las> scene;
-};
-void RegObjs(const vector<sptr<blas>>& objs, _machines* machines) {
-	for (int i = 0; i < objs.size(); i++) {
-		machines->memory.GetLAS()->push_back(make_pair(std::get<1>(model_gen.at(i)).inverse(), objs.at(i)));//blasとその変換を登録
-		machines->materializer.mats.push_back(std::get<2>(model_gen.at(i)));
-	}
-}
-void RegRays(const sptr<camera>& cam, _machines* machines) {
-	machines->generator.RegisterRays(*cam, machines->memory.GetAllowsAllgen(), machines->memory.GetPayloadsAllgen());
-}
-
 int main() {
 
 	//つぎにヘッダを読み込む
-	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\resultsX\dicX768\projRefRayMap)";
+	const std::string dicheaderPrefix = R"(C:\local\user\lensball\lensball\rez\SimVis\dic\dic)";
 	projRefraDicHeader dicheader;
 	{
 		ifstream headerIfs(dicheaderPrefix+".head", std::ios::binary);
@@ -114,7 +87,7 @@ int main() {
 	}
 
 	//結果のフレームはここに保存する
-	const std::string frameSavePrefix = R"(C:\local\user\lensball\lensball\resultsX\framesX64\frame)";
+	const std::string frameSavePrefix = R"(C:\local\user\lensball\lensball\rez\SimVis\frames\frame)";
 
 	constexpr size_t rayTraceThreadNum = 18;
 	std::array<uptr<std::thread>, rayTraceThreadNum> rayTraThreads;
@@ -150,7 +123,6 @@ int main() {
 				target.indexed(rayIdCount++);//indexは座標を元に決めれそう
 			}
 		}
-
 		//モデルを用意
 		size_t trianglesnum_sum = 0;
 		std::list<sptr<blas>> lases;
@@ -172,21 +144,26 @@ int main() {
 		const auto npResult = nper.RayTrace(*bpResult, IGNORE_NEARHIT, IGNORE_PARALLELHIT, world.get());
 
 		toolkit::obstructer<RAYNUM_LIMIT_GENERATION> obser;
-		std::unordered_map<exindex,closesthit> closests;
+		std::unordered_map<exindex, closesthit> closests;
 		obser.Anyhit(*npResult, 0, closests);
 
-		sptr<bitmap<768>> colors = make_shared<bitmap<768>>();
+		//辞書ファイルをロードして方向をマッピングする
+		sptr<bitmapx> colors = make_shared<bitmapx>(dicheader.horizontalRes * dicheader.verticalRes);
 		for (auto& c : *colors)
-			c = hvec3({ 0.,0.,0. });
-		for (const auto& i : closests) {
-			const auto thispos = pixPoses.at(i.first);
-			colors->at(thispos.first + thispos.second * 768) = { -i.second.r.way()[0],-i.second.r.way()[1],-i.second.r.way()[2] };
+			c = hvec3({ 1.,1.,1. });//表示されなかったら
+		exindex count = 0;
+		for (const auto& i : *cam) {
+			const auto thispos = pixPoses.at(count);
+			auto ite = closests.find(count);
+			colors->at(thispos.first + thispos.second * dicheader.horizontalRes) = { 0.,0.,ite != closests.end() ? 1. : 0. };
+
+			count++;
 		}
 
-		PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT<768>(frameSavePrefix+to_string(sceneid)+".bmp", *colors,dicheader.horizontalRes,dicheader.verticalRes);
+		PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT(frameSavePrefix+to_string(sceneid)+".bmp", *colors,dicheader.horizontalRes,dicheader.verticalRes);
 
 		//結果を作成
-		cout << "developping began" << endl;
+		cout << "developped" << endl;
 		//dever.Develop()
 		//auto pixels = machines->developer.Develop(machines->memory.GetPayloadsAllgen(), machines->memory.GetTerminatesGen());//レイヒエラルキーから現像する
 

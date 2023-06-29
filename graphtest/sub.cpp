@@ -101,3 +101,22 @@ hmat4 MakeEular(const hvec3& r) {
 
 	return ExtendMat(rot.matrix());
 }
+
+//サイズを指定して描画　クリップなどはなくただ頭から書き出すだけだからあまり使わないで
+void PrintBmpWithAnotherSize_YOU_MUST_READ_COMMENT(const std::string& path, const bitmapx& dat, size_t width, size_t height) {
+	sptr<img> g(new img);
+	g->width = width;
+	g->height = height;
+
+	auto datite = dat.cbegin();
+	for (int y = 0; y < g->height; y++)
+		for (int x = 0; x < g->width; x++) {
+
+			g->data[y][x].r = (*datite).at(0) * 255;
+			g->data[y][x].g = (*datite).at(1) * 255;
+			g->data[y][x].b = (*datite).at(2) * 255;
+
+			datite++;
+		}
+	WriteBmp(path.c_str(), g.get());
+}
