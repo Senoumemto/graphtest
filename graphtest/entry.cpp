@@ -125,7 +125,6 @@ int main() {
 		}
 		//モデルを用意
 		size_t trianglesnum_sum = 0;
-		std::list<sptr<blas>> lases;
 		uptr<las> world = make_unique<las>();
 		for (const auto& p : model_gen) {
 			dmod tempmod;
@@ -150,12 +149,24 @@ int main() {
 		//辞書ファイルをロードして方向をマッピングする
 		sptr<bitmapx> colors = make_shared<bitmapx>(dicheader.horizontalRes * dicheader.verticalRes);
 		for (auto& c : *colors)
-			c = hvec3({ 1.,1.,1. });//表示されなかったら
+			c = hvec3({ 0.,0.,1. });//表示されなかったら
 		exindex count = 0;
 		for (const auto& i : *cam) {
 			const auto thispos = pixPoses.at(count);
 			auto ite = closests.find(count);
-			colors->at(thispos.first + thispos.second * dicheader.horizontalRes) = { 0.,0.,ite != closests.end() ? 1. : 0. };
+			if (ite != closests.end()) {
+				hvec3 tricenter({0.,0.,0.});//三角の中心
+				for (int pd = 0; pd < 3; pd++) {
+					tricenter.x() += world->front().second->triangles.at(ite->second.tri.triId()).at(pd).x()/3.;
+					tricenter.y() += world->front().second->triangles.at(ite->second.tri.triId()).at(pd).y()/3.;
+					tricenter.z() += world->front().second->triangles.at(ite->second.tri.triId()).at(pd).z()/3.;
+				}
+
+				//三角の中心でどれかは+-1.になっているはず
+				colors->at(thispos.first + thispos.second * dicheader.horizontalRes) = { tricenter.x(),tricenter .y(),tricenter .z()};
+			}
+			else
+				colors->at(thispos.first + thispos.second * dicheader.horizontalRes) = { 1.,0.,0. };
 
 			count++;
 		}
